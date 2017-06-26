@@ -1,6 +1,6 @@
 {
     "name":"<cfboom/> security SAML",
-    "version":"0.1.0",
+    "version":"0.1.1",
     "author":"Joel Tobey <joeltobey@gmail.com>",
     "slug":"cfboom-security-saml",
     "type":"modules",
@@ -10,7 +10,7 @@
         "type":"git",
         "url":"https://github.com/joeltobey/cfboom-security-saml"
     },
-    "location": "https://github.com/joeltobey/cfboom-security-saml/releases/download/v0.1.0/cfboom-security-saml-v0.1.0.zip",
+    "location": "https://github.com/joeltobey/cfboom-security-saml/releases/download/v0.1.1/cfboom-security-saml-v0.1.1.zip",
     "shortDescription":"Provides SAML integration with cfboom-security.",
     "license":[
         {
