@@ -1,0 +1,42 @@
+{
+    "name":"<cfboom/> security SAML",
+    "version":"0.1.0",
+    "author":"Joel Tobey <joeltobey@gmail.com>",
+    "slug":"cfboom-security-saml",
+    "type":"modules",
+    "homepage":"https://github.com/joeltobey/cfboom-security-saml",
+    "documentation":"https://github.com/joeltobey/cfboom-security-saml/wiki",
+    "repository":{
+        "type":"git",
+        "url":"https://github.com/joeltobey/cfboom-security-saml"
+    },
+    "location": "https://github.com/joeltobey/cfboom-security-saml/releases/download/v0.1.0/cfboom-security-saml-v0.1.0.zip",
+    "shortDescription":"Provides SAML integration with cfboom-security.",
+    "license":[
+        {
+            "type":"Apache2",
+            "url":"http://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    ],
+    "contributors":[
+        "Joel Tobey <joeltobey@gmail.com>"
+    ],
+    "engines":[
+        {
+            "type":"lucee",
+            "version":">4.5"
+        },
+        {
+            "type":"adobe",
+            "version":">9.02"
+        }
+    ],
+    "dependencies":{
+        "cfboom-security":"^0.1.0"
+    },
+    "ignore":[
+        "**/.*",
+        "tests",
+        "*/.md"
+    ]
+}
