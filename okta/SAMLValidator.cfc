@@ -26,8 +26,9 @@ component singleton
       _instance['useJavaLoader'] = true;
       _instance['validator'] = javaLoader.create("com.okta.saml.SAMLValidator").init();
     }
-    _instance['configuration'] = _instance.validator.getConfiguration( wirebox.getInstance( configurationLoader ).getConfiguration() );
-    _instance['app'] = _instance.configuration.getDefaultApplication();
+    // TODO: Make this work!
+    //_instance['configuration'] = _instance.validator.getConfiguration( wirebox.getInstance( configurationLoader ).getConfiguration() );
+    //_instance['app'] = _instance.configuration.getDefaultApplication();
   }
 
   public any function getSAMLResponse(required string assertion) {
