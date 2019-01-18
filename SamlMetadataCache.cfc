@@ -15,10 +15,14 @@
  */
 
 /**
- * Validator
- *
  * @author Joel Tobey
- **/
-interface {
-  public any function getSAMLResponse(required string assertion);
+ */
+interface
+  displayname="Interface SamlMetadataCache"
+{
+  public any function getMetadata(string uri, boolean skipSslValidation = false);
+
+  public void function clear();
+
+  public any function remove(string uri);
 }

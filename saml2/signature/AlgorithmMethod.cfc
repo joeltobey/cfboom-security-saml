@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,18 @@
  */
 
 /**
- * Validator
  *
- * @author Joel Tobey
- **/
-interface {
-  public any function getSAMLResponse(required string assertion);
+ */
+component
+  displayname="Enum AlgorithmMethod"
+  output="false"
+{
+  this.RSA_SHA1 = "http://www.w3.org/2000/09/xmldsig##rsa-sha1";
+  this.RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha256";
+  this.RSA_SHA512 = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha512";
+  this.RSA_RIPEMD160 = "http://www.w3.org/2001/04/xmldsig-more##rsa-ripemd160";
+
+  public cfboom.security.saml.saml2.signature.AlgorithmMethod function init() {
+    return this;
+  }
 }

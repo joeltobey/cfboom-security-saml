@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  */
 
 /**
- * Validator
- *
  * @author Joel Tobey
- **/
-interface {
-  public any function getSAMLResponse(required string assertion);
+ */
+interface
+  displayname="Interface SamlProviderProvisioning"
+{
+  public cfboom.security.saml.provider.service.ServiceProviderService function getHostedProvider();
 }

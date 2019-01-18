@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  */
 
 /**
- * Validator
- *
- * @author Joel Tobey
- **/
-interface {
-  public any function getSAMLResponse(required string assertion);
+ * Adds support for multi tenancy based on the context of an HTTP request
+ * Returns the server configuration based on a HTTP request.
+ */
+interface
+  displayname="Interface SamlConfigurationRepository"
+{
+  public cfboom.security.saml.provider.SamlServerConfiguration function getServerConfiguration();
 }

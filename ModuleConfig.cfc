@@ -1,97 +1,201 @@
+/*
+ * Copyright 2017-2019 Joel Tobey <joeltobey@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /**
-Module Directives as public properties
-this.title 				= "Title of the module";
-this.author 			= "Author of the module";
-this.webURL 			= "Web URL for docs purposes";
-this.description 		= "Module description";
-this.version 			= "Module Version";
-this.viewParentLookup   = (true) [boolean] (Optional) // If true, checks for views in the parent first, then it the module.If false, then modules first, then parent.
-this.layoutParentLookup = (true) [boolean] (Optional) // If true, checks for layouts in the parent first, then it the module.If false, then modules first, then parent.
-this.entryPoint  		= "" (Optional) // If set, this is the default event (ex:forgebox:manager.index) or default route (/forgebox) the framework
-									       will use to create an entry link to the module. Similar to a default event.
-this.cfmapping			= "The CF mapping to create";
-this.modelNamespace		= "The namespace to use for registered models, if blank it uses the name of the module."
-this.dependencies 		= "The array of dependencies for this module"
+ * @author Joel Tobey
+ */
+component
+  output="false"
+{
+  variables['Arrays'] = createObject("java", "java.util.Arrays");
 
-structures to create for configuration
-- parentSettings : struct (will append and override parent)
-- settings : struct
-- datasources : struct (will append and override parent)
-- interceptorSettings : struct of the following keys ATM
-	- customInterceptionPoints : string list of custom interception points
-- interceptors : array
-- layoutSettings : struct (will allow to define a defaultLayout for the module)
-- routes : array Allowed keys are same as the addRoute() method of the SES interceptor.
-- wirebox : The wirebox DSL to load and use
+  // Module Properties
+  this.title              = "cfboom-security-saml";
+  this.author             = "Joel Tobey";
+  this.webURL             = "https://github.com/joeltobey/cfboom-security-saml";
+  this.description        = "Provides SAML integration with cfboom-security";
+  this.version            = "2.0.0";
+  // If true, looks for views in the parent first, if not found, then in the module. Else vice-versa
+  this.viewParentLookup   = true;
+  // If true, looks for layouts in the parent first, if not found, then in module. Else vice-versa
+  this.layoutParentLookup = true;
+  // Module Entry Point
+  this.entryPoint         = "saml";
+  // Inherit entry point from parent, so this will be /cfboom/security/saml
+  this.inheritEntryPoint  = true;
+  // Model Namespace
+  this.modelNamespace     = "cfboom-security-saml";
+  // CF Mapping
+  this.cfmapping          = "cfboom/security/saml";
+  // Auto-map models
+  this.autoMapModels      = false;
+  // Module Dependencies
+  this.dependencies       = [ "cfboom-security", "cfboom-http" ];
 
-Available objects in variable scope
-- controller
-- appMapping (application mapping)
-- moduleMapping (include,cf path)
-- modulePath (absolute path)
-- log (A pre-configured logBox logger object for this object)
-- binder (The wirebox configuration binder)
-- wirebox (The wirebox injector)
+  function configure() {
+    // module settings - stored in modules.name.settings
+    settings = {
+      "network" = {
+        "read-timeout" = 10000,
+        "connect-timeout" = 5000
+      },
+      "service-provider" = {
+        "entity-id" = "cfboom.security.saml.sp.id",
+        "alias" = "cfboom-sample-sp",
+        "sign-metadata" = true,
+        "sign-requests" = true,
+        "want-assertions-signed" = true,
+        "single-logout-enabled" = true,
+        "name-ids" = [
+          "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
+          "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+          "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+        ],
+        "keys" = {
+          "active" = {
+            "name" = "",
+            "private-key" = "",
+            "passphrase" = "",
+            "certificate" = ""
+          },
+          "stand-by" = [
+            {
+              "name" = "key2",
+              "private-key" = "",
+              "passphrase" = "",
+              "certificate" = ""
+            },
+            {
+              "name" = "key3",
+              "private-key" = "",
+              "passphrase" = "",
+              "certificate" = ""
+            }
+          ]
+        }
+      },
+      "defaultProvider" = "", // the prodiver key (i.e. 'default' in the example below)
+      "providers" = {
+        "default" = {
+          "alias" = "default",
+          "recipientRoutedUrl" = "saml/sso/default",
+          "metadata" = "https://idp-url/metadata", // optional if 'configurationLoader' is specified.
+          "configurationLoader" = "", // optional wirebox model that implements cfboom.security.saml.ConfigurationLoader.
+                                      // It defaults to MetadataConfigurationLoader and uses the 'metadata' property.
+          "name-id" = "", // optional
+          "link-text" = "" // optional user-friendly text used to select an IdP during login
+        }
+      },
+      "useJavaLoader" = false
+    };
 
-Required Methods
-- configure() : The method ColdBox calls to configure the module.
+    // SES Routes
+    routes = [
+      // Module Entry Point
+      { pattern="/", handler="home", action="index" },
+      // Convention Route
+      { pattern="/:handler/:action?" }
+    ];
 
-Optional Methods
-- onLoad() 		: If found, it is fired once the module is fully loaded
-- onUnload() 	: If found, it is fired once the module is unloaded
+    // Binder Mappings
+    binder.map("InitializationService@cfboom-security-saml").to("cfboom.security.saml.config.InitializationService");
+    //binder.map("SamlServiceProviderServerBeanConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration");
+    binder.map("time@cfboom-security-saml").toValue(createObject("java","java.time.Clock").systemUTC()).asSingleton();
+  }
 
-*/
-component {
+  /**
+   * Fired when the module is registered and activated.
+   */
+  function onLoad() {
+    if ( settings.useJavaLoader ) {
+        wirebox.getInstance( "loader@cbjavaloader" ).appendPaths( modulePath & "/lib" );
+    } else {
+      // Double check if we need to use `cbjavaloader`
+      try {
+        createObject("java", "org.opensaml.core.config.InitializationService");
+      } catch ( any ex ) {
+        settings.useJavaLoader = true;
+        wirebox.getInstance( "loader@cbjavaloader" ).appendPaths( modulePath & "/lib" );
+      }
+    }
 
-	// Module Properties
-	this.title 				= "cfboom-security-saml";
-	this.author 			= "Joel Tobey";
-	this.webURL 			= "https://github.com/joeltobey/cfboom-security-saml";
-	this.description 		= "Provides SAML integration with cfboom-security";
-	this.version			= "0.1.1";
-	// If true, looks for views in the parent first, if not found, then in the module. Else vice-versa
-	this.viewParentLookup 	= true;
-	// If true, looks for layouts in the parent first, if not found, then in module. Else vice-versa
-	this.layoutParentLookup = true;
-	// Module Entry Point
-	this.entryPoint			= "cfboom/security/saml";
-	// Model Namespace
-	this.modelNamespace		= "cfboomSecuritySaml";
-	// CF Mapping
-	this.cfmapping			= "cfboom/security/saml";
-	// Auto-map models
-	this.autoMapModels		= false;
-	// Module Dependencies
-	this.dependencies 		= [ "cfboom-security" ];
+    // Map the cfboom-security javaloader
+    binder.map( "JavaLoader@cfboom-security-saml" )
+      .to( "cfboom.util.JavaLoader" )
+      .initWith( useJavaLoader = settings.useJavaLoader )
+      .asSingleton();
 
-	function configure() {
+    // Un-register the Security Interceptor
+    controller.getInterceptorService().unregister("cfboomSecurityInterceptor");
 
-		// module settings - stored in modules.name.settings
-		settings = {
-			samlProvider = "",
-			samlConfigurationLoader = ""
-		};
+    // Register the Security SAML Interceptor
+    controller.getInterceptorService()
+      .registerInterceptor(
+        interceptorClass      = "cfboom.security.saml.interceptors.SecuritySamlInterceptor",
+        interceptorProperties = settings,
+        interceptorName       = "cfboomSecuritySamlInterceptor"
+      );
 
-	}
+    // Re-Register the Security Interceptor
+    controller.getInterceptorService()
+      .registerInterceptor(
+        interceptorClass      = "cfboom.security.interceptors.SecuritySamlInterceptor",
+        interceptorProperties = settings,
+        interceptorName       = "cfboomSecurityInterceptor"
+      );
 
-	/**
-	* Fired when the module is registered and activated.
-	*/
-	function onLoad() {
-		try {
-			createObject("java", "com.okta.saml.SAMLValidator");
-		} catch (any ex) {
-			wirebox.getInstance( "loader@cbjavaloader" ).appendPaths( modulePath & "/lib" );
-		}
+    var NameId = new cfboom.security.saml.saml2.metadata.NameId();
+    var AlgorithmMethod = new cfboom.security.saml.saml2.signature.AlgorithmMethod();
+    var DigestMethod = new cfboom.security.saml.saml2.signature.DigestMethod();
+    var prefix = "saml/sp/";
+    var settingsNameIds = settings['service-provider']['name-ids'];
+    var nameIds = [];
+    for (var key in settingsNameIds) {
+      arrayAppend(nameIds, NameId[key]);
+    }
 
-		if (len(settings.samlProvider)) {
-			binder.map("samlValidator@cfboomSecuritySaml").to("cfboom.security.saml.#settings.samlProvider#.SAMLValidator");
-		}
-	}
+    var configuration = new cfboom.security.saml.provider.SamlServerConfiguration()
+      .setNetwork(
+        new cfboom.security.saml.provider.config.NetworkConfiguration()
+          .setConnectTimeout(settings.network['connect-timeout'])
+          .setReadTimeout(settings.network['read-timeout'])
+      )
+      .setServiceProvider(
+        new cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration()
+          .setPrefix(prefix)
+          .setSignMetadata(settings['service-provider']['sign-metadata'])
+          .setSignRequests(settings['service-provider']['sign-requests'])
+          .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
+          .setDefaultDigest(DigestMethod.SHA256)
+          .setNameIds(
+            Arrays.asList(nameIds)
+          )
+          .setProviders(createObject("java","java.util.LinkedList").init())
+      );
+writeDump(configuration);
+writeDump(configuration.getServiceProvider());
+writeDump(configuration.getServiceProvider().getMetadata());
+writeDump(configuration.getNetwork());
+writeDump(configuration.getMeta());
+abort;
+  }
 
-	/**
-	* Fired when the module is unregistered and unloaded
-	*/
-	function onUnload() {}
+  /**
+   * Fired when the module is unregistered and unloaded
+   */
+  function onUnload() {}
 
 }
