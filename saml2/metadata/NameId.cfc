@@ -21,19 +21,88 @@ component
   displayname="Enum NameId"
   output="false"
 {
-  variables['_format'] = new cfboom.security.saml.saml2.metadata.NameIdFormat();
+  import cfboom.security.saml.saml2.metadata.NameId;
+  variables['NameIdFormat'] = createObject("component","cfboom.security.saml.saml2.metadata.NameIdFormat").enum();
 
-  this['urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified'] = _format.UNSPECIFIED;
-  this['urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'] = _format.EMAIL;
-  this['urn:oasis:names:tc:SAML:2.0:nameid-format:transient'] = _format.TRANSIENT;
-  this['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'] = _format.PERSISTENT;
-  this['urn:oasis:names:tc:SAML:1.1:nameid-format:X509SubjectName'] = _format.X509_SUBJECT;
-  this['urn:oasis:names:tc:SAML:1.1:nameid-format:WindowsDomainQualifiedName'] = _format.WIN_DOMAIN_QUALIFIED;
-  this['urn:oasis:names:tc:SAML:2.0:nameid-format:kerberos'] = _format.KERBEROS;
-  this['urn:oasis:names:tc:SAML:2.0:nameid-format:entity'] = _format.ENTITY;
-  this['urn:oasis:names:tc:SAML:2.0:nameid-format:encrypted'] = _format.ENCRYPTED;
+  public cfboom.security.saml.saml2.metadata.NameId function enum() {
+    variables['_values'] = [];
 
-  public cfboom.security.saml.saml2.metadata.NameId function init() {
+    this.UNSPECIFIED = new NameId(NameIdFormat.UNSPECIFIED.toUri());
+    arrayAppend(variables._values, this.UNSPECIFIED);
+
+    this.EMAIL = new NameId(NameIdFormat.EMAIL.toUri());
+    arrayAppend(variables._values, this.EMAIL);
+
+    this.TRANSIENT = new NameId(NameIdFormat.TRANSIENT.toUri());
+    arrayAppend(variables._values, this.TRANSIENT);
+
+    this.PERSISTENT = new NameId(NameIdFormat.PERSISTENT.toUri());
+    arrayAppend(variables._values, this.PERSISTENT);
+
+    this.X509_SUBJECT = new NameId(NameIdFormat.X509_SUBJECT.toUri());
+    arrayAppend(variables._values, this.X509_SUBJECT);
+
+    this.WIN_DOMAIN_QUALIFIED = new NameId(NameIdFormat.WIN_DOMAIN_QUALIFIED.toUri());
+    arrayAppend(variables._values, this.WIN_DOMAIN_QUALIFIED);
+
+    this.KERBEROS = new NameId(NameIdFormat.KERBEROS.toUri());
+    arrayAppend(variables._values, this.KERBEROS);
+
+    this.ENTITY = new NameId(NameIdFormat.ENTITY.toUri());
+    arrayAppend(variables._values, this.ENTITY);
+
+    this.ENCRYPTED = new NameId(NameIdFormat.ENCRYPTED.toUri());
+    arrayAppend(variables._values, this.ENCRYPTED);
+
     return this;
+  }
+
+  public cfboom.security.saml.saml2.metadata.NameId function init(any uri, cfboom.security.saml.saml2.metadata.NameIdFormat format) {
+    if (isInstanceOf(arguments.uri, "java.lang.String"))
+      arguments.uri = createObject("java","java.net.URI").init(arguments.uri);
+    if (!structKeyExists(arguments, "format"))
+      arguments['format'] = NameIdFormat.fromUrn(arguments.uri.toString());
+    variables['_value'] = arguments.uri;
+    variables['_format'] = arguments.format;
+    return this;
+  }
+
+  public any function fromUrn(string other) {
+    if (!structKeyExists(arguments, "other") || isNull(arguments.other) || !len(trim(arguments.other))) {
+      return;
+    }
+
+    var uri = createObject("java","java.net.URI").init(arguments.other);
+
+    var format = NameIdFormat.fromUrn(arguments.other);
+    switch (format.name()) {
+      case "PERSISTENT": return this.PERSISTENT;
+      case "EMAIL": return this.EMAIL;
+      case "ENTITY": return this.ENTITY;
+      case "KERBEROS": return this.KERBEROS;
+      case "ENCRYPTED": return this.ENCRYPTED;
+      case "TRANSIENT": return this.TRANSIENT;
+      case "X509_SUBJECT": return this.X509_SUBJECT;
+      case "WIN_DOMAIN_QUALIFIED": return this.WIN_DOMAIN_QUALIFIED;
+    }
+    if (uri.equals(NameIdFormat.UNSPECIFIED.toUri())) {
+      return this.UNSPECIFIED;
+    }
+    return new NameId(uri, NameIdFormat.UNSPECIFIED);
+  }
+
+  public any function getValue() {
+    return variables._value;
+  }
+
+  public cfboom.security.saml.saml2.metadata.NameIdFormat function getFormat() {
+    return variables._format;
+  }
+
+  /**
+   * @Override
+   */
+  public string function toString() {
+    return getValue().toString();
   }
 }

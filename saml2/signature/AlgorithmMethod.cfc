@@ -21,12 +21,44 @@ component
   displayname="Enum AlgorithmMethod"
   output="false"
 {
-  this.RSA_SHA1 = "http://www.w3.org/2000/09/xmldsig##rsa-sha1";
-  this.RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha256";
-  this.RSA_SHA512 = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha512";
-  this.RSA_RIPEMD160 = "http://www.w3.org/2001/04/xmldsig-more##rsa-ripemd160";
+  import cfboom.security.saml.saml2.signature.AlgorithmMethod;
 
-  public cfboom.security.saml.saml2.signature.AlgorithmMethod function init() {
+  public cfboom.security.saml.saml2.signature.AlgorithmMethod function enum() {
+    variables['_values'] = [];
+
+    this.RSA_SHA1 = new AlgorithmMethod("http://www.w3.org/2000/09/xmldsig##rsa-sha1");
+    arrayAppend(variables._values, this.RSA_SHA1);
+
+    this.RSA_SHA256 = new AlgorithmMethod("http://www.w3.org/2001/04/xmldsig-more##rsa-sha256");
+    arrayAppend(variables._values, this.RSA_SHA256);
+
+    this.RSA_SHA512 = new AlgorithmMethod("http://www.w3.org/2001/04/xmldsig-more##rsa-sha512");
+    arrayAppend(variables._values, this.RSA_SHA512);
+
+    this.RSA_RIPEMD160 = new AlgorithmMethod("http://www.w3.org/2001/04/xmldsig-more##rsa-ripemd160");
+    arrayAppend(variables._values, this.RSA_RIPEMD160);
+
     return this;
+  }
+
+  public cfboom.security.saml.saml2.signature.AlgorithmMethod function init(string urn) {
+    variables['_urn'] = arguments.urn;
+    return this;
+  }
+
+  public any function fromUrn(string urn) {
+    for (var m in variables._values) {
+      if (arguments.urn.equalsIgnoreCase(m.toString())) {
+        return m;
+      }
+    }
+    return;
+  }
+
+  /**
+   * @Override
+   */
+  public string function toString() {
+    return variables._urn;
   }
 }

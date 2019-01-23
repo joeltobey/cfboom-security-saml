@@ -1,0 +1,13 @@
+version: '3'
+services:
+  cfboom-security-saml:
+    build:
+      context: .
+      args:
+        RUN_TESTS: "false"
+    image: cfboom/security/saml
+    container_name: cfboom-security-saml
+    ports:
+    - "8888:8888"
+    volumes:
+    - .:/var/www/modules/cfboom/modules/cfboom-security-saml

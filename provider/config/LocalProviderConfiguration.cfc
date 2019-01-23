@@ -22,6 +22,8 @@ component
   displayname="Class LocalProviderConfiguration"
   output="false"
 {
+  variables['NameId'] = createObject("component","cfboom.security.saml.saml2.metadata.NameId").enum();
+
   variables['_singleLogoutEnabled'] = true;
   variables['_nameIds'] = createObject("java","java.util.LinkedList").init();
   variables['_defaultSigningAlgorithm'] = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha256";
@@ -116,19 +118,20 @@ component
     return variables._nameIds;
   }
 
-  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setNameIds(any nameIds) {
-    //variables._nameIds = arguments.nameIds.stream().map(
-      //n -> n instanceof String ? NameId.fromUrn((String)n) : (NameId)n).collect(Collectors.toList()
-    //);
-    variables['_nameIds'] = arguments.nameIds;
+  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setNameIds(array nameIds) {
+    var nameIds = createObject("java","java.util.LinkedList").init();
+    for (var key in arguments.nameIds) {
+      nameIds.add(NameId.fromUrn(key));
+    }
+    variables['_nameIds'] = nameIds;
     return this;
   }
 
-  public string function getDefaultSigningAlgorithm() {
+  public cfboom.security.saml.saml2.signature.AlgorithmMethod function getDefaultSigningAlgorithm() {
     return variables._defaultSigningAlgorithm;
   }
 
-  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setDefaultSigningAlgorithm(string defaultSigningAlgorithm) {
+  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setDefaultSigningAlgorithm(cfboom.security.saml.saml2.signature.AlgorithmMethod defaultSigningAlgorithm) {
     variables['_defaultSigningAlgorithm'] = arguments.defaultSigningAlgorithm;
     return this;
   }

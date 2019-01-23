@@ -23,10 +23,18 @@ component
   displayname="Abstract Class SamlServiceProviderServerBeanConfiguration"
   output="false"
 {
+  property name="settings" inject="coldbox:moduleSettings:cfboom-security-saml";
   property name="wirebox" inject="wirebox";
+
+  variables['Arrays'] = createObject("java", "java.util.Arrays");
 
   public cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration function init() {
     return this;
+  }
+
+  public void function onDIComplete() {
+    variables['AlgorithmMethod'] = variables.wirebox.getInstance("AlgorithmMethod@cfboom-security-saml");
+    variables['DigestMethod'] = variables.wirebox.getInstance("DigestMethod@cfboom-security-saml");
   }
 
   /**
@@ -81,7 +89,26 @@ component
    */
   public cfboom.security.saml.provider.SamlServerConfiguration function getDefaultHostSamlServerConfiguration() {
     if (!structKeyExists(variables, "_spSamlServerConfiguration")) {
-
+      var prefix = "saml/sp/";
+      var configuration = new cfboom.security.saml.provider.SamlServerConfiguration()
+        .setNetwork(
+          new cfboom.security.saml.provider.config.NetworkConfiguration()
+            .setConnectTimeout(variables.settings.network['connect-timeout'])
+            .setReadTimeout(variables.settings.network['read-timeout'])
+        )
+        .setServiceProvider(
+          new cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration()
+            .setPrefix(prefix)
+            .setSignMetadata(variables.settings['service-provider']['sign-metadata'])
+            .setSignRequests(variables.settings['service-provider']['sign-requests'])
+            .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
+            .setDefaultDigest(DigestMethod.SHA256)
+            .setNameIds(
+              Arrays.asList(variables.settings['service-provider']['name-ids'])
+            )
+            .setProviders(createObject("java","java.util.LinkedList").init())
+        );
+      variables['_spSamlServerConfiguration'] = configuration;
     }
     return variables._spSamlServerConfiguration;
   }

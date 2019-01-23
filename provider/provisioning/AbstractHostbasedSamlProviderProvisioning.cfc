@@ -22,6 +22,13 @@ component
   displayname="Abstract Class AbstractHostbasedSamlProviderProvisioning"
   output="false"
 {
+  property name="Binding" inject="Binding@cfboom-security-saml";
+  property name="KeyType" inject="KeyType@cfboom-security-saml";
+  property name="NameId" inject="NameId@cfboom-security-saml";
+
+  variables['Arrays'] = createObject("java", "java.util.Arrays");
+  variables['UUID'] = createObject("java","java.util.UUID");
+
   public cfboom.security.saml.provider.provisioning.AbstractHostbasedSamlProviderProvisioning function init(cfboom.security.saml.provider.config.SamlConfigurationRepository configuration,
                                                                                                             cfboom.security.saml.SamlTransformer transformer,
                                                                                                             cfboom.security.saml.SamlValidator validator,
@@ -84,17 +91,17 @@ component
 		);
 	}
 */
-/*
-	protected String getAliasPath(LocalProviderConfiguration configuration) {
-		try {
-			return hasText(configuration.getAlias()) ?
-				UriUtils.encode(configuration.getAlias(), StandardCharsets.ISO_8859_1.name()) :
-				UriUtils.encode(configuration.getEntityId(), StandardCharsets.ISO_8859_1.name());
-		} catch (UnsupportedEncodingException e) {
-			throw new SamlException(e);
-		}
-	}
-*/
+
+  public string function getAliasPath(cfboom.security.saml.provider.config.LocalProviderConfiguration configuration) {
+    try {
+      return !isNull(arguments.configuration.getAlias()) && len(trim(arguments.configuration.getAlias())) ?
+        URLEncodedFormat(arguments.configuration.getAlias(), "iso-8859-1") :
+        URLEncodedFormat(arguments.configuration.getEntityId(), "iso-8859-1");
+    } catch (java.io.UnsupportedEncodingException ex) {
+      throw(ex.getMessage(), "SamlException");
+    }
+  }
+
 /*
 	private IdentityProviderMetadata identityProviderMetadata(String baseUrl,
 															  SimpleKey signingKey,
@@ -159,88 +166,85 @@ component
 				.setIndex(index);
 	}
 */
-/*
-	protected ServiceProviderService getHostedServiceProvider(LocalServiceProviderConfiguration spConfig) {
-		String basePath = spConfig.getBasePath();
+  public cfboom.security.saml.provider.service.ServiceProviderService function getHostedServiceProvider(cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration spConfig) {
+    var basePath = arguments.spConfig.getBasePath();
 
-		List<SimpleKey> keys = new LinkedList<>();
-		SimpleKey activeKey = spConfig.getKeys().getActive();
-		keys.add(activeKey);
-		keys.add(activeKey.clone(activeKey.getName()+"-encryption",KeyType.ENCRYPTION));
-		keys.addAll(spConfig.getKeys().getStandBy());
-		SimpleKey signingKey = spConfig.isSignMetadata() ? spConfig.getKeys().getActive() : null;
+    var keys = createObject("java","java.util.LinkedList").init();
+    var activeKey = arguments.spConfig.getKeys().getActive();
+    keys.add(activeKey);
+    keys.add(activeKey.clone(activeKey.getName()+"-encryption",KeyType.ENCRYPTION));
+    keys.addAll(arguments.spConfig.getKeys().getStandBy());
+    var signingKey = arguments.spConfig.isSignMetadata() ? arguments.spConfig.getKeys().getActive() : null;
 
-		String prefix = hasText(spConfig.getPrefix()) ? spConfig.getPrefix() : "saml/sp/";
-		String aliasPath = getAliasPath(spConfig);
-		ServiceProviderMetadata metadata =
-			serviceProviderMetadata(
-				basePath,
-				signingKey,
-				keys,
-				prefix,
-				aliasPath,
-				spConfig.getDefaultSigningAlgorithm(),
-				spConfig.getDefaultDigest()
-			);
-		if (!spConfig.getNameIds().isEmpty()) {
-			metadata.getServiceProvider().setNameIds(spConfig.getNameIds());
-		}
+    var prefix = !isNull(arguments.spConfig.getPrefix()) && len(trim(arguments.spConfig.getPrefix())) ? arguments.spConfig.getPrefix() : "saml/sp/";
+    var aliasPath = getAliasPath(arguments.spConfig);
+    var metadata =
+      serviceProviderMetadata(
+        basePath,
+        signingKey,
+        keys,
+        prefix,
+        aliasPath,
+        arguments.spConfig.getDefaultSigningAlgorithm(),
+        arguments.spConfig.getDefaultDigest()
+      );
+    if (!arguments.spConfig.getNameIds().isEmpty()) {
+      metadata.getServiceProvider().setNameIds(arguments.spConfig.getNameIds());
+    }
 
-		if (!spConfig.isSingleLogoutEnabled()) {
-			metadata.getServiceProvider().setSingleLogoutService(Collections.emptyList());
-		}
-		if (hasText(spConfig.getEntityId())) {
-			metadata.setEntityId(spConfig.getEntityId());
-		}
-		if (hasText(spConfig.getAlias())) {
-			metadata.setEntityAlias(spConfig.getAlias());
-		}
-		metadata.getServiceProvider().setWantAssertionsSigned(spConfig.isWantAssertionsSigned());
-		metadata.getServiceProvider().setAuthnRequestsSigned(spConfig.isSignRequests());
+    if (!arguments.spConfig.isSingleLogoutEnabled()) {
+      metadata.getServiceProvider().setSingleLogoutService(Collections.emptyList());
+    }
+    if (!isNull(arguments.spConfig.getEntityId()) && len(trim(arguments.spConfig.getEntityId()))) {
+      metadata.setEntityId(arguments.spConfig.getEntityId());
+    }
+    if (!isNull(arguments.spConfig.getAlias()) && len(trim(arguments.spConfig.getAlias()))) {
+      metadata.setEntityAlias(arguments.spConfig.getAlias());
+    }
+    metadata.getServiceProvider().setWantAssertionsSigned(arguments.spConfig.isWantAssertionsSigned());
+    metadata.getServiceProvider().setAuthnRequestsSigned(arguments.spConfig.isSignRequests());
 
-		return new HostedServiceProviderService(
-			spConfig,
-			metadata,
-			getTransformer(),
-			getValidator(),
-			getCache()
-		);
-	}
-*/
-/*
-	protected ServiceProviderMetadata serviceProviderMetadata(String baseUrl,
-															  SimpleKey signingKey,
-															  List<SimpleKey> keys,
-															  String prefix,
-															  String aliasPath,
-															  AlgorithmMethod signAlgorithm,
-															  DigestMethod signDigest) {
+    return new cfboom.security.saml.provider.service.HostedServiceProviderService(
+      arguments.spConfig,
+      metadata,
+      getTransformer(),
+      getValidator(),
+      getCache()
+    );
+  }
 
-		return new ServiceProviderMetadata()
-			.setEntityId(baseUrl)
-			.setId(UUID.randomUUID().toString())
-			.setSigningKey(signingKey, signAlgorithm, signDigest)
-			.setProviders(
-				asList(
-					new org.springframework.security.saml.saml2.metadata.ServiceProvider()
-						.setKeys(keys)
-						.setWantAssertionsSigned(true)
-						.setAuthnRequestsSigned(signingKey != null)
-						.setAssertionConsumerService(
-							asList(
-								getEndpoint(baseUrl, prefix + "SSO/alias/" + aliasPath, Binding.POST, 0, true),
-								getEndpoint(baseUrl, prefix + "SSO/alias/" + aliasPath, REDIRECT, 1, false)
-							)
-						)
-						.setNameIds(asList(NameId.PERSISTENT, NameId.EMAIL))
-						.setKeys(keys)
-						.setSingleLogoutService(
-							asList(
-								getEndpoint(baseUrl, prefix + "logout/alias/" + aliasPath, REDIRECT, 0, true)
-							)
-						)
-				)
-			);
-	}
-*/
+  public cfboom.security.saml.saml2.metadata.ServiceProviderMetadata function serviceProviderMetadata(string baseUrl,
+                                                                                                      cfboom.security.saml.key.SimpleKey signingKey,
+                                                                                                      any keys,
+                                                                                                      string prefix,
+                                                                                                      string aliasPath,
+                                                                                                      cfboom.security.saml.saml2.signature.AlgorithmMethod signAlgorithm,
+                                                                                                      cfboom.security.saml.saml2.signature.DigestMethod signDigest) {
+
+    return new cfboom.security.saml.saml2.metadata.ServiceProviderMetadata()
+      .setEntityId(arguments.baseUrl)
+      .setId(UUID.randomUUID().toString())
+      .setSigningKey(arguments.signingKey, arguments.signAlgorithm, arguments.signDigest)
+      .setProviders(
+        Arrays.asList([
+          new org.springframework.security.saml.saml2.metadata.ServiceProvider()
+            .setKeys(arguments.keys)
+            .setWantAssertionsSigned(true)
+            .setAuthnRequestsSigned(structKeyExists(arguments, "signingKey"))
+            .setAssertionConsumerService(
+              Arrays.asList([
+                getEndpoint(arguments.baseUrl, arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.POST, 0, true),
+                getEndpoint(arguments.baseUrl, arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.REDIRECT, 1, false)
+              ])
+            )
+            .setNameIds(Arrays.asList([NameId.PERSISTENT, NameId.EMAIL]))
+            .setKeys(arguments.keys)
+            .setSingleLogoutService(
+              Arrays.asList([
+                getEndpoint(arguments.baseUrl, arguments.prefix & "logout/alias/" & arguments.aliasPath, Binding.REDIRECT, 0, true)
+              ])
+            )
+        ])
+      );
+  }
 }

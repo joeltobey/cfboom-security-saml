@@ -20,8 +20,6 @@
 component
   output="false"
 {
-  variables['Arrays'] = createObject("java", "java.util.Arrays");
-
   // Module Properties
   this.title              = "cfboom-security-saml";
   this.author             = "Joel Tobey";
@@ -111,8 +109,44 @@ component
     ];
 
     // Binder Mappings
+    binder.map("cfboom.security.saml.key.KeyType").to("cfboom.security.saml.key.KeyType").noInit();
+    binder.map("KeyType@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.key.KeyType", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.Namespace").to("cfboom.security.saml.saml2.Namespace").noInit();
+    binder.map("Namespace@cfboom-security-saml").to("cfboom.security.saml.saml2.Namespace").asSingleton();
+
+    binder.map("cfboom.security.saml.saml2.attribute.AttributeNameFormat").to("cfboom.security.saml.saml2.attribute.AttributeNameFormat").noInit();
+    binder.map("AttributeNameFormat@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.attribute.AttributeNameFormat", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.authentication.LogoutReason").to("cfboom.security.saml.saml2.authentication.LogoutReason").noInit();
+    binder.map("LogoutReason@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.authentication.LogoutReason", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.authentication.StatusCode").to("cfboom.security.saml.saml2.authentication.StatusCode").noInit();
+    binder.map("StatusCode@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.authentication.StatusCode", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.authentication.AuthenticationContextClassReference").to("cfboom.security.saml.saml2.authentication.AuthenticationContextClassReference").noInit();
+    binder.map("AuthenticationContextClassReference@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.authentication.AuthenticationContextClassReference", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.authentication.SubjectConfirmationMethod").to("cfboom.security.saml.saml2.authentication.SubjectConfirmationMethod").noInit();
+    binder.map("SubjectConfirmationMethod@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.authentication.SubjectConfirmationMethod", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.metadata.Binding").to("cfboom.security.saml.saml2.metadata.Binding").noInit();
+    binder.map("Binding@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.metadata.Binding", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.metadata.NameId").to("cfboom.security.saml.saml2.metadata.NameId").noInit();
+    binder.map("NameId@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.metadata.NameId", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.signature.AlgorithmMethod").to("cfboom.security.saml.saml2.signature.AlgorithmMethod").noInit();
+    binder.map("AlgorithmMethod@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.signature.AlgorithmMethod", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.signature.CanonicalizationMethod").to("cfboom.security.saml.saml2.signature.CanonicalizationMethod").noInit();
+    binder.map("CanonicalizationMethod@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.signature.CanonicalizationMethod", "enum").asSingleton().noInit();
+
+    binder.map("cfboom.security.saml.saml2.signature.DigestMethod").to("cfboom.security.saml.saml2.signature.DigestMethod").noInit();
+    binder.map("DigestMethod@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.signature.DigestMethod", "enum").asSingleton().noInit();
+
     binder.map("InitializationService@cfboom-security-saml").to("cfboom.security.saml.config.InitializationService");
-    //binder.map("SamlServiceProviderServerBeanConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration");
+    binder.map("SamlServiceProviderServerBeanConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration");
     binder.map("time@cfboom-security-saml").toValue(createObject("java","java.time.Clock").systemUTC()).asSingleton();
   }
 
@@ -156,41 +190,6 @@ component
         interceptorProperties = settings,
         interceptorName       = "cfboomSecurityInterceptor"
       );
-
-    var NameId = new cfboom.security.saml.saml2.metadata.NameId();
-    var AlgorithmMethod = new cfboom.security.saml.saml2.signature.AlgorithmMethod();
-    var DigestMethod = new cfboom.security.saml.saml2.signature.DigestMethod();
-    var prefix = "saml/sp/";
-    var settingsNameIds = settings['service-provider']['name-ids'];
-    var nameIds = [];
-    for (var key in settingsNameIds) {
-      arrayAppend(nameIds, NameId[key]);
-    }
-
-    var configuration = new cfboom.security.saml.provider.SamlServerConfiguration()
-      .setNetwork(
-        new cfboom.security.saml.provider.config.NetworkConfiguration()
-          .setConnectTimeout(settings.network['connect-timeout'])
-          .setReadTimeout(settings.network['read-timeout'])
-      )
-      .setServiceProvider(
-        new cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration()
-          .setPrefix(prefix)
-          .setSignMetadata(settings['service-provider']['sign-metadata'])
-          .setSignRequests(settings['service-provider']['sign-requests'])
-          .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
-          .setDefaultDigest(DigestMethod.SHA256)
-          .setNameIds(
-            Arrays.asList(nameIds)
-          )
-          .setProviders(createObject("java","java.util.LinkedList").init())
-      );
-writeDump(configuration);
-writeDump(configuration.getServiceProvider());
-writeDump(configuration.getServiceProvider().getMetadata());
-writeDump(configuration.getNetwork());
-writeDump(configuration.getMeta());
-abort;
   }
 
   /**

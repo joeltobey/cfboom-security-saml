@@ -47,10 +47,11 @@ component
     return variables._time;
   }
 
-  public void function _init() {
+  public cfboom.security.saml.spi.SecuritySaml function _init() {
     if (!variables._hasInitCompleted.get()) {
       performInit();
     }
+    return this;
   }
 
   private void function performInit() {

@@ -37,7 +37,7 @@ component
     return this;
   }
 
-  public cfboom.security.saml.SamlTransformer function setImplementation( cfboom.security.saml.spi.SecuritySaml implementation ) {
+  public cfboom.security.saml.spi.DefaultValidator function setImplementation( cfboom.security.saml.spi.SecuritySaml implementation ) {
     variables['_implementation'] = arguments.implementation;
     return this;
   }

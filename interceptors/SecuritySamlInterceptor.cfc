@@ -24,13 +24,13 @@ component
   output="false"
 {
   property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
-  //property name="configuration" inject="SamlServiceProviderServerBeanConfiguration@cfboom-security-saml";
+  property name="configuration" inject="SamlServiceProviderServerBeanConfiguration@cfboom-security-saml";
 
   /**
    * Configure this interceptor.
    */
   public void function configure() {
-    //variables['_provisioning'] = variables.configuration.getSamlProvisioning();
+    variables['_provisioning'] = variables.configuration.getSamlProvisioning();
 
     // Initialize default SSO IdP
     getDefaultSsoIdp();
@@ -40,6 +40,8 @@ component
    * The preProcess() interceptor point.
    */
   public void function preProcess( event, interceptData, buffer, rc, prc ) {
+    arguments.rc['SAMLResponse'] = fileRead(expandPath("/tests/resources/testSAMLResponse.txt"));
+    arguments.rc['RelayState'] = "/yodaHome";
     if ( requiresAuthentication( argumentCollection = arguments ) ) {
       return attemptAuthentication( argumentCollection = arguments );
 
@@ -56,7 +58,7 @@ writeDump(response);abort;
   }
 
   public boolean function requiresAuthentication( event, interceptData, buffer, rc, prc ) {
-    return arguments.event.METHODS.POST.equals( arguments.event.getHTTPMethod() )
+    return arguments.event.METHODS.GET.equals( arguments.event.getHTTPMethod() )
       && hasText(getSamlResponseData( argumentCollection = arguments ))
       && onRecipientRoutedUrl( argumentCollection = arguments )
       && super.requiresAuthentication( argumentCollection = arguments );
@@ -125,6 +127,7 @@ writeDump(provider);abort;
   }
 
   private boolean function onRecipientRoutedUrl( event, interceptData, buffer, rc, prc ) {
+    if (!structKeyExists(arguments.prc, "currentRoutedURL")) return false; // No need to check
     var defaultSsoIdp = structKeyExists(variables._defaultSsoIdp, "alias") ? variables._defaultSsoIdp.alias : "";
     var providers = getProperty("providers",{});
     var ssoIdp = arguments.event.getValue("ssoIdp", defaultSsoIdp);

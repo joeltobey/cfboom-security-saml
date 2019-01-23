@@ -26,7 +26,7 @@ component
                                                           string privateKey,
                                                           string certificate,
                                                           string passphrase,
-                                                          string type) {
+                                                          cfboom.security.saml.key.KeyType type) {
     if (structKeyExists(arguments, "name") && !isNull(arguments.name))
       variables['_name'] = arguments.name;
     if (structKeyExists(arguments, "privateKey") && !isNull(arguments.privateKey))
@@ -50,18 +50,21 @@ component
     return this;
   }
 
-  public string function getType() {
+  public any function getType() {
     if (structKeyExists(variables, "_type"))
       return variables._type;
   }
 
-  public cfboom.security.saml.key.SimpleKey function setType(string type) {
+  public cfboom.security.saml.key.SimpleKey function setType(cfboom.security.saml.key.KeyType type) {
     variables['_type'] = arguments.type;
     return this;
   }
 
-  public cfboom.security.saml.key.SimpleKey function clone(string alias, string type) {
-    return new cfboom.security.saml.key.SimpleKey(arguments.alias, getPrivateKey(), getCertificate(), getPassphrase(), arguments.type);
+  public cfboom.security.saml.key.SimpleKey function clone(string name, cfboom.security.saml.key.KeyType type) {
+    arguments['privateKey'] = getPrivateKey();
+    arguments['certificate'] = getCertificate();
+    arguments['passphrase'] = getPassphrase();
+    return new cfboom.security.saml.key.SimpleKey( argumentCollection = arguments );
   }
 
   public string function getPrivateKey() {

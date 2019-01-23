@@ -23,6 +23,7 @@
  */
 component
   extends="cfboom.lang.Object"
+  implements="cfboom.security.saml.SamlMetadataCache"
   displayname="Class DefaultMetadataCache"
   output="false"
 {
@@ -73,10 +74,12 @@ component
   }
 
   public void function clear() {
+    misses.clear();
     cache.clear();
   }
 
   public any function remove(string uri) {
-    return cache.remove(uri);
+    misses.remove(arguments.uri);
+    return cache.remove(arguments.uri);
   }
 }
