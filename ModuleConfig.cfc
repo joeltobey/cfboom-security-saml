@@ -100,14 +100,6 @@ component
       "useJavaLoader" = false
     };
 
-    // SES Routes
-    routes = [
-      // Module Entry Point
-      { pattern="/", handler="home", action="index" },
-      // Convention Route
-      { pattern="/:handler/:action?" }
-    ];
-
     // Binder Mappings
     binder.map("cfboom.security.saml.key.KeyType").to("cfboom.security.saml.key.KeyType").noInit();
     binder.map("KeyType@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.key.KeyType", "enum").asSingleton().noInit();

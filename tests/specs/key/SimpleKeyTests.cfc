@@ -26,10 +26,7 @@ component
   // this will run once after initialization and before setUp()
   public void function beforeTests() {
     super.beforeTests();
-    var test = new cfboom.security.saml.saml2.authentication.SubjectPrincipal();
-    writeDump(test);
-    abort;
-    variables['KeyType'] = createObject("component","cfboom.security.saml.key.KeyType").enum();
+    variables['KeyType'] = getInstance("KeyType@cfboom-security-saml");
   }
 
   // this will run once after all tests have been run

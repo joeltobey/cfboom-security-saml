@@ -23,6 +23,12 @@ component
 {
   import cfboom.security.saml.key.KeyType;
 
+  variables['_map'] = {
+    "signing" = "SIGNING",
+    "unspecified" = "UNSPECIFIED",
+    "encryption" = "ENCRYPTION"
+  };
+
   public cfboom.security.saml.key.KeyType function enum() {
     variables['_values'] = [];
     this.SIGNING = new KeyType("signing");
@@ -36,6 +42,7 @@ component
 
   public cfboom.security.saml.key.KeyType function init(string type) {
     variables['_type'] = arguments.type;
+    variables['_name'] = variables._map[arguments.type];
     return this;
   }
 
@@ -46,6 +53,10 @@ component
       }
     }
     return this.UNSPECIFIED;
+  }
+
+  public string function name() {
+    return variables._name;
   }
 
   public string function getTypeName() {
