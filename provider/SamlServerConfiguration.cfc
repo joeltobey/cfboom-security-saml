@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2002-2019 the original author or authors and Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@
 /**
  * Represents a configuration for a hosted or domain.
  * A hosted domain can have one local service provider, or one local identity provider, or both.
- *
- * @author Joel Tobey
- * @singleton
  */
 component
   extends="cfboom.lang.Object"
@@ -59,9 +56,9 @@ component
 
   public cfboom.security.saml.provider.SamlServerConfiguration function clone() {
     var result = super.clone();
-    result.network = network != null ? network.clone() : null;
-    result.identityProvider = identityProvider != null ? identityProvider.clone() : null;
-    result.serviceProvider = serviceProvider != null ? serviceProvider.clone() : null;
+    result.network = structKeyExists(variables, "_network") ? variables._network.clone() : null;
+    result.identityProvider = structKeyExists(variables, "_identityProvider") ? variables._identityProvider.clone() : null;
+    result.serviceProvider = structKeyExists(variables, "_serviceProvider") ? variables._serviceProvider.clone() : null;
     return result;
   }
 

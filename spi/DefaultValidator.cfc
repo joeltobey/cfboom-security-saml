@@ -31,9 +31,11 @@ component
   private int maxAuthenticationAgeMillis = 1000 * 60 * 60 * 24; //24 hours
   private Clock time = Clock.systemUTC();
 */
-  public cfboom.security.saml.spi.DefaultValidator function init( cfboom.security.saml.spi.SecuritySaml implementation ) {
-    if (structKeyExists(arguments, "implementation") && !isNull(arguments.implementation))
-      setImplementation( arguments.implementation );
+  /**
+   * @implementation.inject SamlImplementation@cfboom-security-saml
+   */
+  public cfboom.security.saml.spi.DefaultValidator function init( required cfboom.security.saml.spi.SecuritySaml implementation ) {
+    setImplementation( arguments.implementation );
     return this;
   }
 

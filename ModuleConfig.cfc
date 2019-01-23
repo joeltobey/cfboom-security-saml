@@ -46,6 +46,10 @@ component
   function configure() {
     // module settings - stored in modules.name.settings
     settings = {
+      "samlImplementation" = "cfboom.security.saml.spi.opensaml.OpenSamlImplementation",
+      "samlTransformer" = "cfboom.security.saml.spi.DefaultSamlTransformer",
+      "samlValidator" = "cfboom.security.saml.spi.DefaultValidator",
+      "samlMetadataCache" = "cfboom.security.saml.spi.DefaultMetadataCache",
       "network" = {
         "read-timeout" = 10000,
         "connect-timeout" = 5000
@@ -137,6 +141,10 @@ component
     binder.map("cfboom.security.saml.saml2.signature.DigestMethod").to("cfboom.security.saml.saml2.signature.DigestMethod").noInit();
     binder.map("DigestMethod@cfboom-security-saml").toFactoryMethod("cfboom.security.saml.saml2.signature.DigestMethod", "enum").asSingleton().noInit();
 
+    binder.map("SamlTransformer@cfboom-security-saml").to( settings.samlTransformer ).asSingleton();
+    binder.map("SamlImplementation@cfboom-security-saml").to( settings.samlImplementation ).asSingleton();
+    binder.map("SamlValidator@cfboom-security-saml").to( settings.samlValidator ).asSingleton();
+    binder.map("SamlMetadataCache@cfboom-security-saml").to( settings.samlMetadataCache ).asSingleton();
     binder.map("InitializationService@cfboom-security-saml").to("cfboom.security.saml.config.InitializationService");
     binder.map("SamlServiceProviderServerBeanConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration");
     binder.map("time@cfboom-security-saml").toValue(createObject("java","java.time.Clock").systemUTC()).asSingleton();

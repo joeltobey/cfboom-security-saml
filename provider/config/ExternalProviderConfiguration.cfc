@@ -88,18 +88,22 @@ component
 
   public cfboom.security.saml.provider.config.ExternalProviderConfiguration function setVerificationKeys(any verificationKeys) {
     variables['_verificationKeys'] = arguments.verificationKeys;
+    structDelete(variables, "_verificationKeysData");
     return this;
   }
 
   public any function getVerificationKeyData() {
-    return getVerificationKeys()
-      .stream()
-      .map(
-        s -> new SimpleKey()
-          .setName("from-config-" & UUID.randomUUID().toString())
-          .setCertificate(s)
-      )
-      .collect(Collectors.toList());
+    if (!structKeyExists(variables, "_verificationKeysData")) {
+      variables['_verificationKeysData'] = createObject("java","java.util.LinkedList").init();
+      for (var s in getVerificationKeys()) {
+        variables._verificationKeysData.add(
+          new cfboom.security.saml.key.SimpleKey()
+            .setName("from-config-" & UUID.randomUUID().toString())
+            .setCertificate(s)
+        );
+      }
+    }
+    return variables._verificationKeysData;
   }
 
   /**

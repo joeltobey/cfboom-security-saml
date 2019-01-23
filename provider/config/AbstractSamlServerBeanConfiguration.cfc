@@ -23,8 +23,11 @@ component
   displayname="Abstract Class AbstractSamlServerBeanConfiguration"
   output="false"
 {
-  property name="clockTime" inject="time@cfboom-security-saml";
-  property name="wirebox" inject="wirebox";
+  property name="_samlTransformer" inject="SamlTransformer@cfboom-security-saml";
+  property name="_implementation" inject="SamlImplementation@cfboom-security-saml";
+  property name="_validator" inject="SamlValidator@cfboom-security-saml";
+  property name="_metadataCache" inject="SamlMetadataCache@cfboom-security-saml";
+  property name="_samlTime" inject="time@cfboom-security-saml";
 
   public cfboom.security.saml.provider.config.AbstractSamlServerBeanConfiguration function init() {
     return this;
@@ -46,65 +49,23 @@ component
   }
 */
 
-  /**
-   * @Bean
-   */
   public cfboom.security.saml.SamlTransformer function samlTransformer() {
-    if (!structKeyExists(variables, "_transformer")) {
-      var args = {};
-      args['name'] = "cfboom.security.saml.spi.DefaultSamlTransformer";
-      args['initArguments'] = {
-        "implementation" = samlImplementation()
-      };
-      variables['_transformer'] = wirebox.getInstance( argumentCollection = args );
-    }
-    return variables._transformer;
+    return variables._samlTransformer;
   }
 
-  /**
-   * @Bean
-   */
   public cfboom.security.saml.spi.SecuritySaml function samlImplementation() {
-    if (!structKeyExists(variables, "_implementation")) {
-      var args = {};
-      args['name'] = "cfboom.security.saml.spi.opensaml.OpenSamlImplementation";
-      args['initArguments'] = {
-        "time" = samlTime()
-      };
-      variables['_implementation'] = wirebox.getInstance( argumentCollection = args )._init();
-    }
     return variables._implementation;
   }
 
-  /**
-   * @Bean
-   */
   public any function samlTime() {
-    return variables.clockTime;
+    return variables._samlTime;
   }
 
-  /**
-   * @Bean
-   */
   public cfboom.security.saml.SamlValidator function samlValidator() {
-    if (!structKeyExists(variables, "_validator")) {
-      var args = {};
-      args['name'] = "cfboom.security.saml.spi.DefaultValidator";
-      args['initArguments'] = {
-        "implementation" = samlImplementation()
-      };
-      variables['_validator'] = wirebox.getInstance( argumentCollection = args );
-    }
     return variables._validator;
   }
 
-  /**
-   * @Bean
-   */
   public cfboom.security.saml.SamlMetadataCache function samlMetadataCache() {
-    if (!structKeyExists(variables, "_metadataCache")) {
-      variables['_metadataCache'] = wirebox.getInstance( "cfboom.security.saml.spi.DefaultMetadataCache" );
-    }
     return variables._metadataCache;
   }
 /*

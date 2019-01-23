@@ -26,9 +26,11 @@ component
 {
   variables['UTF_8'] = createObject("java","java.nio.charset.StandardCharsets").UTF_8;
 
-  public cfboom.security.saml.spi.DefaultSamlTransformer function init( cfboom.security.saml.spi.SecuritySaml implementation ) {
-    if (structKeyExists(arguments, "implementation") && !isNull(arguments.implementation))
-      setImplementation( arguments.implementation );
+  /**
+   * @implementation.inject SamlImplementation@cfboom-security-saml
+   */
+  public cfboom.security.saml.spi.DefaultSamlTransformer function init( required cfboom.security.saml.spi.SecuritySaml implementation ) {
+    setImplementation( arguments.implementation );
     return this;
   }
 

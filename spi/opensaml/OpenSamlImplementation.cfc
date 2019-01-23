@@ -27,8 +27,9 @@ component
 
   /**
    * @time.type java.time.Clock
+   * @time.inject time@cfboom-security-saml
    */
-  public cfboom.security.saml.spi.opensaml.OpenSamlImplementation function init(any time) {
+  public cfboom.security.saml.spi.opensaml.OpenSamlImplementation function init( required any time) {
     super.init( arguments.time );
     return this;
   }
