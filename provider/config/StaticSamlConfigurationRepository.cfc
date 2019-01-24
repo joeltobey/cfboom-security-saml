@@ -23,6 +23,9 @@ component
   displayname="Class StaticSamlConfigurationRepository"
   output="false"
 {
+  /**
+   * @configuration.inject spSamlServerConfiguration@cfboom-security-saml
+   */
   public cfboom.security.saml.provider.config.StaticSamlConfigurationRepository function init(cfboom.security.saml.provider.SamlServerConfiguration configuration) {
     variables['_configuration'] = arguments.configuration;
     return this;

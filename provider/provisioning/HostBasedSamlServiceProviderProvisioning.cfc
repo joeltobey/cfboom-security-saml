@@ -23,6 +23,12 @@ component
   displayname="Class HostBasedSamlServiceProviderProvisioning"
   output="false"
 {
+  /**
+   * @configuration.inject SamlConfigurationRepository@cfboom-security-saml
+   * @transformer.inject SamlTransformer@cfboom-security-saml
+   * @validator.inject SamlValidator@cfboom-security-saml
+   * @cache.inject SamlMetadataCache@cfboom-security-saml
+   */
   public cfboom.security.saml.provider.provisioning.HostBasedSamlServiceProviderProvisioning function init(cfboom.security.saml.provider.config.SamlConfigurationRepository configuration,
                                                                                                            cfboom.security.saml.SamlTransformer transformer,
                                                                                                            cfboom.security.saml.SamlValidator validator,

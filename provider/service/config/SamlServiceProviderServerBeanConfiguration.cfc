@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2002-2019 the original author or authors and Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,24 @@
  */
 
 /**
- * @author Joel Tobey
  * @singleton
+ * @deprecated
  */
 component
   extends="cfboom.security.saml.provider.config.AbstractSamlServerBeanConfiguration"
   displayname="Abstract Class SamlServiceProviderServerBeanConfiguration"
   output="false"
 {
+  property name="spSamlServerConfiguration" inject="spSamlServerConfiguration@cfboom-security-saml";
   property name="settings" inject="coldbox:moduleSettings:cfboom-security-saml";
+  property name="AlgorithmMethod" inject="AlgorithmMethod@cfboom-security-saml";
+  property name="DigestMethod" inject="DigestMethod@cfboom-security-saml";
   property name="wirebox" inject="wirebox";
 
   variables['Arrays'] = createObject("java", "java.util.Arrays");
 
   public cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration function init() {
     return this;
-  }
-
-  public void function onDIComplete() {
-    variables['AlgorithmMethod'] = variables.wirebox.getInstance("AlgorithmMethod@cfboom-security-saml");
-    variables['DigestMethod'] = variables.wirebox.getInstance("DigestMethod@cfboom-security-saml");
   }
 
   /**
@@ -88,29 +86,7 @@ component
    * @Bean(name = "spSamlServerConfiguration")
    */
   public cfboom.security.saml.provider.SamlServerConfiguration function getDefaultHostSamlServerConfiguration() {
-    if (!structKeyExists(variables, "_spSamlServerConfiguration")) {
-      var prefix = "saml/sp/";
-      var configuration = new cfboom.security.saml.provider.SamlServerConfiguration()
-        .setNetwork(
-          new cfboom.security.saml.provider.config.NetworkConfiguration()
-            .setConnectTimeout(variables.settings.network['connect-timeout'])
-            .setReadTimeout(variables.settings.network['read-timeout'])
-        )
-        .setServiceProvider(
-          new cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration()
-            .setPrefix(prefix)
-            .setSignMetadata(variables.settings['service-provider']['sign-metadata'])
-            .setSignRequests(variables.settings['service-provider']['sign-requests'])
-            .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
-            .setDefaultDigest(DigestMethod.SHA256)
-            .setNameIds(
-              Arrays.asList(variables.settings['service-provider']['name-ids'])
-            )
-            .setProviders(createObject("java","java.util.LinkedList").init())
-        );
-      variables['_spSamlServerConfiguration'] = configuration;
-    }
-    return variables._spSamlServerConfiguration;
+    return variables.spSamlServerConfiguration;
   }
 
 }

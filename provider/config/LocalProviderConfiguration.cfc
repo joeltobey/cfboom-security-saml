@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2002-2019 the original author or authors and Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,31 @@
  */
 
 /**
- * @author Joel Tobey
+ *
  */
 component
   extends="cfboom.lang.Object"
   displayname="Class LocalProviderConfiguration"
   output="false"
 {
-  variables['NameId'] = createObject("component","cfboom.security.saml.saml2.metadata.NameId").enum();
+  property name="NameId" inject="NameId@cfboom-security-saml";
 
+  //private String entityId;
+  //private String alias;
+  variables['_signMetadata'] = false;
+  //private String metadata;
+  variables['_keys'] = new cfboom.security.saml.provider.config.RotatingKeys();
+  //private String prefix;
   variables['_singleLogoutEnabled'] = true;
   variables['_nameIds'] = createObject("java","java.util.LinkedList").init();
   variables['_defaultSigningAlgorithm'] = "http://www.w3.org/2001/04/xmldsig-more##rsa-sha256";
   variables['_defaultDigest'] = createObject("java","javax.xml.crypto.dsig.DigestMethod").SHA256;
   variables['_providers'] = createObject("java","java.util.LinkedList").init();
+  //private String basePath;
 
   public cfboom.security.saml.provider.config.LocalProviderConfiguration function init(string prefix) {
-    setPrefix(arguments.prefix);
+    if (structKeyExists(arguments, "prefix"))
+      setPrefix(arguments.prefix);
     return this;
   }
 
@@ -170,6 +178,14 @@ component
 
   public any function getProviders() {
     return variables._providers;
+  }
+
+  public any function getProvider(string alias) {
+    for (var provider in getProviders()) {
+      if (arguments.alias.equals(provider.getAlias())) {
+        return provider;
+      }
+    }
   }
 
   public cfboom.security.saml.provider.config.LocalProviderConfiguration function setProviders(any providers) {

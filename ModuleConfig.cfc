@@ -43,6 +43,8 @@ component
   // Module Dependencies
   this.dependencies       = [ "cfboom-security", "cfboom-http" ];
 
+  variables['Arrays'] = createObject("java", "java.util.Arrays");
+
   function configure() {
     // module settings - stored in modules.name.settings
     settings = {
@@ -50,11 +52,15 @@ component
       "samlTransformer" = "cfboom.security.saml.spi.DefaultSamlTransformer",
       "samlValidator" = "cfboom.security.saml.spi.DefaultValidator",
       "samlMetadataCache" = "cfboom.security.saml.spi.DefaultMetadataCache",
+      "samlConfigurationRepository" = "cfboom.security.saml.provider.config.StaticSamlConfigurationRepository",
+      "samlServiceProviderProvisioning" = "cfboom.security.saml.provider.provisioning.HostBasedSamlServiceProviderProvisioning",
+      "localServiceProviderConfiguration" = "cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration",
       "network" = {
         "read-timeout" = 10000,
         "connect-timeout" = 5000
       },
       "service-provider" = {
+        "prefix" = "saml/sp/",
         "entity-id" = "cfboom.security.saml.sp.id",
         "alias" = "cfboom-sample-sp",
         "sign-metadata" = true,
@@ -68,22 +74,22 @@ component
         ],
         "keys" = {
           "active" = {
-            "name" = "",
+            "name" = "key1",
             "private-key" = "",
-            "passphrase" = "",
+            "passphrase" = "key1-password",
             "certificate" = ""
           },
           "stand-by" = [
             {
               "name" = "key2",
               "private-key" = "",
-              "passphrase" = "",
+              "passphrase" = "key2-password",
               "certificate" = ""
             },
             {
               "name" = "key3",
               "private-key" = "",
-              "passphrase" = "",
+              "passphrase" = "key3-password",
               "certificate" = ""
             }
           ]
@@ -93,10 +99,8 @@ component
       "providers" = {
         "default" = {
           "alias" = "default",
-          "recipientRoutedUrl" = "saml/sso/default",
+          "recipient-routed-url" = "saml/sso/default",
           "metadata" = "https://idp-url/metadata", // optional if 'configurationLoader' is specified.
-          "configurationLoader" = "", // optional wirebox model that implements cfboom.security.saml.ConfigurationLoader.
-                                      // It defaults to MetadataConfigurationLoader and uses the 'metadata' property.
           "name-id" = "", // optional
           "link-text" = "" // optional user-friendly text used to select an IdP during login
         }
@@ -145,8 +149,19 @@ component
     binder.map("SamlImplementation@cfboom-security-saml").to( settings.samlImplementation ).asSingleton();
     binder.map("SamlValidator@cfboom-security-saml").to( settings.samlValidator ).asSingleton();
     binder.map("SamlMetadataCache@cfboom-security-saml").to( settings.samlMetadataCache ).asSingleton();
+    binder.map("SamlConfigurationRepository@cfboom-security-saml").to( settings.samlConfigurationRepository ).asSingleton();
+    binder.map("SamlServiceProviderProvisioning@cfboom-security-saml").to( settings.samlServiceProviderProvisioning ).asSingleton();
+    binder.map("LocalServiceProviderConfiguration@cfboom-security-saml").to( settings.localServiceProviderConfiguration ).asSingleton();
+
     binder.map("InitializationService@cfboom-security-saml").to("cfboom.security.saml.config.InitializationService");
-    binder.map("SamlServiceProviderServerBeanConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.SamlServiceProviderServerBeanConfiguration");
+    binder.map("SamlServerConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.SamlServerConfiguration");
+    binder.map("NetworkConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.config.NetworkConfiguration");
+    binder.map("ServiceProviderMetadata@cfboom-security-saml").to("cfboom.security.saml.saml2.metadata.ServiceProviderMetadata").into("NoScope");
+    binder.map("ServiceProvider@cfboom-security-saml").to("cfboom.security.saml.saml2.metadata.ServiceProvider").into("NoScope");
+    binder.map("SimpleKey@cfboom-security-saml").to("cfboom.security.saml.key.SimpleKey").into("NoScope");
+    binder.map("RotatingKeys@cfboom-security-saml").to("cfboom.security.saml.provider.config.RotatingKeys").into("NoScope");
+    binder.map("ExternalIdentityProviderConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.ExternalIdentityProviderConfiguration").into("NoScope");
+
     binder.map("time@cfboom-security-saml").toValue(createObject("java","java.time.Clock").systemUTC()).asSingleton();
   }
 
@@ -171,6 +186,8 @@ component
       .to( "cfboom.util.JavaLoader" )
       .initWith( useJavaLoader = settings.useJavaLoader )
       .asSingleton();
+
+    loadBeanConfiguration();
 
     // Un-register the Security Interceptor
     controller.getInterceptorService().unregister("cfboomSecurityInterceptor");
@@ -197,4 +214,82 @@ component
    */
   function onUnload() {}
 
+  private void function loadBeanConfiguration() {
+    var AlgorithmMethod = wirebox.getInstance("AlgorithmMethod@cfboom-security-saml");
+    var DigestMethod = wirebox.getInstance("DigestMethod@cfboom-security-saml");
+
+    var configuration = wirebox.getInstance("SamlServerConfiguration@cfboom-security-saml")
+      .setNetwork(
+        wirebox.getInstance("NetworkConfiguration@cfboom-security-saml")
+          .setConnectTimeout(variables.settings.network['connect-timeout'])
+          .setReadTimeout(variables.settings.network['read-timeout'])
+      )
+      .setServiceProvider(
+        wirebox.getInstance("LocalServiceProviderConfiguration@cfboom-security-saml")
+          .setPrefix(variables.settings['service-provider']['prefix'])
+          .setAlias(variables.settings['service-provider']['alias'])
+          .setEntityId(variables.settings['service-provider']['entity-id'])
+          .setSignMetadata(variables.settings['service-provider']['sign-metadata'])
+          .setSignRequests(variables.settings['service-provider']['sign-requests'])
+          .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
+          .setDefaultDigest(DigestMethod.SHA256)
+          .setNameIds(Arrays.asList(variables.settings['service-provider']['name-ids']))
+          .setKeys(wirebox.getInstance("RotatingKeys@cfboom-security-saml")
+            .setActive(wirebox.getInstance("SimpleKey@cfboom-security-saml")
+              .setName(variables.settings['service-provider']['keys']['active']['name'])
+              .setPrivateKey(variables.settings['service-provider']['keys']['active']['private-key'])
+              .setPassphrase(variables.settings['service-provider']['keys']['active']['passphrase'])
+              .setCertificate(variables.settings['service-provider']['keys']['active']['certificate'])
+            ))
+          .setProviders(createObject("java","java.util.LinkedList").init())
+      );
+    if (structKeyExists(variables.settings['service-provider']['keys'], "stand-by")) {
+      var keys = configuration.getServiceProvider().getKeys();
+      var standBy = createObject("java","java.util.LinkedList").init();
+      for (var key in variables.settings['service-provider']['keys']['stand-by']) {
+        standBy.add(wirebox.getInstance("SimpleKey@cfboom-security-saml")
+          .setName(key['name'])
+          .setPrivateKey(key['private-key'])
+          .setPassphrase(key['passphrase'])
+          .setCertificate(key['certificate']));
+      }
+      keys.setStandBy(standBy);
+    }
+    if (structKeyExists(variables.settings, "providers")) {
+      var defaultProvider = "";
+      if (structKeyExists(variables.settings, "defaultProvider"))
+        defaultProvider = variables.settings.defaultProvider;
+      var sp = configuration.getServiceProvider();
+      var spList = createObject("java","java.util.LinkedList").init();
+      for (var key in variables.settings.providers) {
+        var provider = variables.settings.providers[key];
+        var eipc = wirebox.getInstance("ExternalIdentityProviderConfiguration@cfboom-security-saml");
+        eipc.setAlias(provider.alias);
+        if (structKeyExists(provider, "recipient-routed-url"))
+          eipc.setRecipientRoutedUrl(provider['recipient-routed-url']);
+        if (structKeyExists(provider, "metadata"))
+          eipc.setMetadata(provider['metadata']);
+        if (structKeyExists(provider, "link-text"))
+          eipc.setLinktext(provider['link-text']);
+        if (structKeyExists(provider, "skip-ssl-validation"))
+          eipc.setSkipSslValidation(javaCast("boolean",provider['skip-ssl-validation']));
+        if (structKeyExists(provider, "metadata-trust-check"))
+          eipc.setMetadataTrustCheck(javaCast("boolean",provider['metadata-trust-check']));
+        if (structKeyExists(provider, "verification-keys"))
+          eipc.setMetadata(Arrays.asList(provider['verification-keys']));
+        if (structKeyExists(provider, "name-id"))
+          eipc.setNameId(provider['name-id']);
+        if (structKeyExists(provider, "assertion-consumer-service-index"))
+          eipc.setAssertionConsumerServiceIndex(provider['assertion-consumer-service-index']);
+        spList.add(eipc);
+        if (key == defaultProvider)
+          sp.setDefaultProvider(eipc);
+      }
+      sp.setProviders(spList);
+      if (isNull(sp.getDefaultProvider()) && spList.size() > 0) {
+        sp.setDefaultProvider(spList.get(0));
+      }
+    }
+    binder.map("spSamlServerConfiguration@cfboom-security-saml").toValue(configuration).asSingleton();
+  }
 }

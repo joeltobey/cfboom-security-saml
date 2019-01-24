@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Joel Tobey <joeltobey@gmail.com>
+ * Copyright 2002-2019 the original author or authors and Joel Tobey <joeltobey@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,13 @@
  */
 
 /**
- * @author Joel Tobey
+ *
  */
 component
   extends="cfboom.lang.Object"
   displayname="Class RotatingKeys"
   output="false"
 {
-  variables['_active'] = null;
   variables['_standBy'] = createObject("java","java.util.LinkedList").init();
 
   public cfboom.security.saml.provider.config.RotatingKeys function init() {

@@ -24,17 +24,12 @@ component
   output="false"
 {
   property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
-  property name="configuration" inject="SamlServiceProviderServerBeanConfiguration@cfboom-security-saml";
+  property name="samlServiceProviderProvisioning" inject="SamlServiceProviderProvisioning@cfboom-security-saml";
 
   /**
    * Configure this interceptor.
    */
-  public void function configure() {
-    variables['_provisioning'] = variables.configuration.getSamlProvisioning();
-
-    // Initialize default SSO IdP
-    getDefaultSsoIdp();
-  }
+  public void function configure() {}
 
   /**
    * The preProcess() interceptor point.
@@ -71,8 +66,10 @@ writeDump(response);abort;
       throw("SAMLResponse parameter missing", "AuthenticationCredentialsNotFoundException");
     }
 
-    var provider = getProvisioning().getHostedProvider();
-writeDump(provider);abort;
+    var provider = variables.samlServiceProviderProvisioning;
+writeDump(provider);
+writeDump(arguments.prc.ssoIdp);
+abort;
 /*
     var r = provider.fromXml(responseData, true, GET.matches(request.getMethod()), Response.class);
     if (logger.isTraceEnabled()) {
@@ -113,34 +110,23 @@ writeDump(provider);abort;
     return !strData.isEmpty();
   }
 
-  private struct function getDefaultSsoIdp() {
-    if (!structKeyExists(variables, "_defaultSsoIdp")) {
-      variables['_defaultSsoIdp'] = {};
-      var defaultSsoIdp = getProperty("defaultProvider","");
-      var providers = getProperty("providers",{});
-      if (!structKeyExists(providers, defaultSsoIdp) && structCount(providers) > 0)
-        defaultSsoIdp = structKeyArray(providers)[1];
-      if (structKeyExists(providers, defaultSsoIdp))
-        variables['_defaultSsoIdp'] = providers[defaultSsoIdp];
-    }
-    return variables._defaultSsoIdp;
-  }
-
   private boolean function onRecipientRoutedUrl( event, interceptData, buffer, rc, prc ) {
     if (!structKeyExists(arguments.prc, "currentRoutedURL")) return false; // No need to check
-    var defaultSsoIdp = structKeyExists(variables._defaultSsoIdp, "alias") ? variables._defaultSsoIdp.alias : "";
-    var providers = getProperty("providers",{});
-    var ssoIdp = arguments.event.getValue("ssoIdp", defaultSsoIdp);
-    if (structKeyExists(providers, ssoIdp)
-        && structKeyExists(providers[ssoIdp], "recipientRoutedUrl")
-        && arguments.prc.currentRoutedURL == providers[ssoIdp].recipientRoutedUrl) {
-      arguments.prc['ssoIdp'] = providers[ssoIdp];
+    var sp = samlServiceProviderProvisioning.getConfigurationRepository().getServerConfiguration().getServiceProvider();
+    var defaultSsoIdp = sp.getDefaultProvider();
+    var ssoIdpAlias = arguments.event.getValue("ssoIdp", defaultSsoIdp.getAlias());
+    var ssoIdp = javaCast("null","");
+    if (ssoIdpAlias.equals(defaultSsoIdp.getAlias())) {
+      ssoIdp = defaultSsoIdp;
+    } else {
+      ssoIdp = sp.getProvider(ssoIdpAlias);
+    }
+    if (!isNull(ssoIdp)
+        && !isNull(ssoIdp.getRecipientRoutedUrl())
+        && arguments.prc.currentRoutedURL.equals(ssoIdp.getRecipientRoutedUrl())) {
+      arguments.prc['ssoIdp'] = ssoIdp;
       return true;
     }
     return false;
-  }
-
-  private cfboom.security.saml.provider.provisioning.SamlProviderProvisioning function getProvisioning() {
-    return variables._provisioning;
   }
 }

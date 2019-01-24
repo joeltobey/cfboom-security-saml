@@ -47,4 +47,14 @@ component
     variables['_wantAssertionsSigned'] = arguments.wantAssertionsSigned;
     return this;
   }
+
+  public any function getDefaultProvider() {
+    if (structKeyExists(variables, "_defaultProvider"))
+      return variables._defaultProvider;
+  }
+
+  public cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration function setDefaultProvider(cfboom.security.saml.provider.service.config.ExternalIdentityProviderConfiguration defaultProvider) {
+    variables['_defaultProvider'] = arguments.defaultProvider;
+    return this;
+  }
 }

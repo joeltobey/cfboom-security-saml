@@ -25,6 +25,7 @@ component
   property name="Binding" inject="Binding@cfboom-security-saml";
   property name="KeyType" inject="KeyType@cfboom-security-saml";
   property name="NameId" inject="NameId@cfboom-security-saml";
+  property name="wirebox" inject="wirebox";
 
   variables['Arrays'] = createObject("java", "java.util.Arrays");
   variables['UUID'] = createObject("java","java.util.UUID");
@@ -172,7 +173,7 @@ component
     var keys = createObject("java","java.util.LinkedList").init();
     var activeKey = arguments.spConfig.getKeys().getActive();
     keys.add(activeKey);
-    keys.add(activeKey.clone(activeKey.getName()+"-encryption",KeyType.ENCRYPTION));
+    keys.add(activeKey.clone(activeKey.getName() & "-encryption",KeyType.ENCRYPTION));
     keys.addAll(arguments.spConfig.getKeys().getStandBy());
     var signingKey = arguments.spConfig.isSignMetadata() ? arguments.spConfig.getKeys().getActive() : null;
 
@@ -221,13 +222,13 @@ component
                                                                                                       cfboom.security.saml.saml2.signature.AlgorithmMethod signAlgorithm,
                                                                                                       cfboom.security.saml.saml2.signature.DigestMethod signDigest) {
 
-    return new cfboom.security.saml.saml2.metadata.ServiceProviderMetadata()
+    return variables.wirebox.getInstance("ServiceProviderMetadata@cfboom-security-saml")
       .setEntityId(arguments.baseUrl)
       .setId(UUID.randomUUID().toString())
       .setSigningKey(arguments.signingKey, arguments.signAlgorithm, arguments.signDigest)
       .setProviders(
         Arrays.asList([
-          new org.springframework.security.saml.saml2.metadata.ServiceProvider()
+          variables.wirebox.getInstance("ServiceProvider@cfboom-security-saml")
             .setKeys(arguments.keys)
             .setWantAssertionsSigned(true)
             .setAuthnRequestsSigned(structKeyExists(arguments, "signingKey"))
