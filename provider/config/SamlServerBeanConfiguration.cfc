@@ -15,19 +15,10 @@
  */
 
 /**
- * @singleton
+ * Used during ColdBox module configuration
  */
-component
-  extends="cfboom.lang.Object"
-  implements="cfboom.security.saml.provider.config.SamlServerBeanConfiguration"
-  displayname="Abstract Class AbstractSamlServerBeanConfiguration"
-  output="false"
+interface
+  displayname="Interface SamlServerBeanConfiguration"
 {
-  public cfboom.security.saml.provider.config.AbstractSamlServerBeanConfiguration function init() {
-    return this;
-  }
-
-  public cfboom.security.saml.provider.SamlServerConfiguration function getDefaultHostSamlServerConfiguration() {
-    throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'getDefaultHostSamlServerConfiguration()'"));
-  }
+  public cfboom.security.saml.provider.SamlServerConfiguration function getDefaultHostSamlServerConfiguration();
 }
