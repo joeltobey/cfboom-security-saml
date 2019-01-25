@@ -34,28 +34,15 @@ component
   /**
    * The preProcess() interceptor point.
    */
-  public void function preProcess( event, interceptData, buffer, rc, prc ) {
-    arguments.rc['SAMLResponse'] = fileRead(expandPath("/tests/resources/testSAMLResponse.txt"));
-    arguments.rc['RelayState'] = "/yodaHome";
+  public any function preProcess( event, interceptData, buffer, rc, prc ) {
     if ( requiresAuthentication( argumentCollection = arguments ) ) {
+      writeDump(attemptAuthentication( argumentCollection = arguments ));
       return attemptAuthentication( argumentCollection = arguments );
-
-      var metadata = variables.metadataCache.getMetadata(arguments.prc.ssoIdp.metadata);
-// org.opensaml.saml.saml2.core.impl.ResponseImpl (org.opensaml.saml.saml2.core.Response)
-      var assertion = charsetEncode( binaryDecode( getSamlResponseData( argumentCollection = arguments ), "Base64" ), "utf-8" );
-      var assertionStream = variables.javaLoader.create("java.io.ByteArrayInputStream").init(assertion.getBytes());
-      var parserPool = variables._XMLObjectProviderRegistrySupport.getParserPool();
-writeDump(parserPool);abort;
-      var response = variables._XMLObjectSupport.unmarshallFromInputStream( variables._XMLObjectProviderRegistrySupport.getParserPool(), assertionStream );
-      assertionStream.close();
-writeDump(response);abort;
     }
   }
 
   public boolean function requiresAuthentication( event, interceptData, buffer, rc, prc ) {
-    return arguments.event.METHODS.GET.equals( arguments.event.getHTTPMethod() )
-      && hasText(getSamlResponseData( argumentCollection = arguments ))
-      && onRecipientRoutedUrl( argumentCollection = arguments )
+    return hasText(getSamlResponseData( argumentCollection = arguments ))
       && super.requiresAuthentication( argumentCollection = arguments );
   }
 
@@ -66,41 +53,31 @@ writeDump(response);abort;
       throw("SAMLResponse parameter missing", "AuthenticationCredentialsNotFoundException");
     }
 
-    var provider = variables.samlServiceProviderProvisioning;
-writeDump(provider);
-writeDump(arguments.prc.ssoIdp);
-abort;
-/*
-    var r = provider.fromXml(responseData, true, GET.matches(request.getMethod()), Response.class);
-    if (logger.isTraceEnabled()) {
-      logger.trace("Received SAMLResponse XML:" + r.getOriginalXML());
-    }
-    IdentityProviderMetadata remote = variables._provider.getRemoteProvider(r);
+    var provider = variables.samlServiceProviderProvisioning.getHostedProvider();
 
-    ValidationResult validationResult = variables._provider.validate(r);
+    var r = provider.fromXml(responseData, true, arguments.event.METHODS.GET.equals( arguments.event.getHTTPMethod() ), "cfboom.security.saml.saml2.authentication.Response");
+    variables.log.debug("Received SAMLResponse XML:" & r.getOriginalXML());
+    var remoteProvider = provider.getRemoteProvider(r);
+
+    var validationResult = provider.validate(r);
     if (validationResult.hasErrors()) {
-      throw new InsufficientAuthenticationException(
-        validationResult.toString()
-              );
+      throw(validationResult.toString(), "cfboom.security.saml.InsufficientAuthenticationException");
     }
 
-    Authentication authentication = new DefaultSamlAuthentication(
-            true,
-        r.getAssertions().get(0),
+    var authentication = new cfboom.security.saml.spi.DefaultSamlAuthentication(
+      true,
+      r.getAssertions().get(0),
       remote.getEntityId(),
-        variables._provider.getMetadata().getEntityId(),
-      request.getParameter("RelayState")
-            );
+      provider.getMetadata().getEntityId(),
+      arguments.event.getValue("RelayState", "")
+    );
 
     return getAuthenticationManager().authenticate(authentication);
-*/
   }
 
   private string function getSamlResponseData( event, interceptData, buffer, rc, prc ) {
-    var SAMLResponseData = "";
-    if (structKeyExists(arguments.rc, "SAMLResponse"))
-      SAMLResponseData = trim(arguments.rc.SAMLResponse);
-    return SAMLResponseData;
+    var SAMLResponseData = arguments.event.getValue("SAMLResponse", "");
+    return trim(SAMLResponseData);
   }
 
   private boolean function hasText( string str ) {
@@ -108,25 +85,5 @@ abort;
       return false;
     var strData = trim(arguments.str);
     return !strData.isEmpty();
-  }
-
-  private boolean function onRecipientRoutedUrl( event, interceptData, buffer, rc, prc ) {
-    if (!structKeyExists(arguments.prc, "currentRoutedURL")) return false; // No need to check
-    var sp = samlServiceProviderProvisioning.getConfigurationRepository().getServerConfiguration().getServiceProvider();
-    var defaultSsoIdp = sp.getDefaultProvider();
-    var ssoIdpAlias = arguments.event.getValue("ssoIdp", defaultSsoIdp.getAlias());
-    var ssoIdp = javaCast("null","");
-    if (ssoIdpAlias.equals(defaultSsoIdp.getAlias())) {
-      ssoIdp = defaultSsoIdp;
-    } else {
-      ssoIdp = sp.getProvider(ssoIdpAlias);
-    }
-    if (!isNull(ssoIdp)
-        && !isNull(ssoIdp.getRecipientRoutedUrl())
-        && arguments.prc.currentRoutedURL.equals(ssoIdp.getRecipientRoutedUrl())) {
-      arguments.prc['ssoIdp'] = ssoIdp;
-      return true;
-    }
-    return false;
   }
 }
