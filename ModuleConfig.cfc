@@ -63,6 +63,9 @@ component
         "connect-timeout" = 5000
       },
       "service-provider" = {
+        "base-url" = "http://localhost",
+        // "assertion-consumer-service-path" = "custom/saml/SSO/path", // This overrides default created from 'prefix' and 'alias'
+        // "single-logout-service-path" = "custom/saml/logout/path", // This overrides default created from 'prefix' and 'alias'
         "prefix" = "saml/sp/",
         "entity-id" = "cfboom.security.saml.sp.id",
         "alias" = "cfboom-sample-sp",
@@ -102,7 +105,6 @@ component
       "providers" = {
         "default" = {
           "alias" = "default",
-          "recipient-routed-url" = "saml/sso/default",
           "metadata" = "https://idp-url/metadata", // optional if 'configurationLoader' is specified.
           "name-id" = "", // optional
           "link-text" = "" // optional user-friendly text used to select an IdP during login
@@ -155,7 +157,12 @@ component
     binder.map("ServiceProvider@cfboom-security-saml").to("cfboom.security.saml.saml2.metadata.ServiceProvider").into("NoScope");
     binder.map("SimpleKey@cfboom-security-saml").to("cfboom.security.saml.key.SimpleKey").into("NoScope");
     binder.map("RotatingKeys@cfboom-security-saml").to("cfboom.security.saml.provider.config.RotatingKeys").into("NoScope");
+    binder.map("Endpoint@cfboom-security-saml").to("cfboom.security.saml.saml2.metadata.Endpoint").into("NoScope");
     binder.map("ExternalIdentityProviderConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.ExternalIdentityProviderConfiguration").into("NoScope");
+
+    binder.map("EncodingUtils@cfboom-security-saml").to("cfboom.security.saml.spi.EncodingUtils").asSingleton();
+    binder.map("HostedServiceProviderService@cfboom-security-saml").to("cfboom.security.saml.provider.service.HostedServiceProviderService").into("NoScope");
+    binder.map("DateUtils@cfboom-security-saml").to("cfboom.security.saml.util.DateUtils").asSingleton();
 
     binder.map("time@cfboom-security-saml").toValue(createObject("java","java.time.Clock").systemUTC()).asSingleton();
   }
