@@ -37,7 +37,7 @@ component
   }
 
   public cfboom.security.saml.validation.ValidationResult function addError(string error) {
-    variables.errors.add(new cfboom.security.saml.validation.ValidationError(error));
+    variables._errors.add(new cfboom.security.saml.validation.ValidationError(error));
     return this;
   }
 
@@ -63,7 +63,7 @@ component
   }
 
   public cfboom.security.saml.validation.ValidationResult function addError(cfboom.security.saml.validation.ValidationError error) {
-    variables.errors.add(arguments.error);
+    variables._errors.add(arguments.error);
     return this;
   }
 

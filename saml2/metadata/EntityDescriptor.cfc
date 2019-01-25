@@ -24,6 +24,17 @@ component
   displayname="Class EntityDescriptor"
   output="false"
 {
+  property name="_id" type="string";
+  property name="_entityId" type="string";
+  property name="_entityAlias" type="string";
+  property name="_validUntil" type="any" class="org.joda.time.DateTime";
+  property name="_cacheDuration" type="any" class="javax.xml.datatype.Duration";
+  property name="_providers" type="array" class="List<? extends Provider>";
+  property name="_signature" type="cfboom.security.saml.saml2.signature.Signature";
+  property name="_signingKey" type="cfboom.security.saml.key.SimpleKey";
+  property name="_algorithm" type="cfboom.security.saml.saml2.signature.AlgorithmMethod";
+  property name="_digest" type="cfboom.security.saml.saml2.signature.DigestMethod";
+
   public cfboom.security.saml.saml2.metadata.EntityDescriptor function init(cfboom.security.saml.saml2.metadata.EntityDescriptor other) {
     if (structKeyExists(arguments, "other") && !isNull(arguments.other)) {
       variables['_id'] = arguments.other.getId();
@@ -36,6 +47,17 @@ component
       variables['_signingKey'] = arguments.other.getSigningKey();
       variables['_algorithm'] = arguments.other.getAlgorithm();
       variables['_digest'] = arguments.other.getDigest();
+    } else {
+      variables['_id'] = "";
+      variables['_entityId'] = "";
+      variables['_entityAlias'] = "";
+      variables['_validUntil'] = null;
+      variables['_cacheDuration'] = null;
+      variables['_providers'] = createObject("java","java.util.LinkedList").init();
+      variables['_signature'] = null;
+      variables['_signingKey'] = null;
+      variables['_algorithm'] = null;
+      variables['_digest'] = null;
     }
     return this;
   }
@@ -127,7 +149,10 @@ component
     return variables._signature;
   }
 
-  public cfboom.security.saml.saml2.metadata.EntityDescriptor function setSignature(cfboom.security.saml.saml2.signature.Signature signature) {
+  /**
+   * @signature.class cfboom.security.saml.saml2.signature.Signature
+   */
+  public cfboom.security.saml.saml2.metadata.EntityDescriptor function setSignature(any signature) {
     variables['_signature'] = arguments.signature;
     return this;
   }

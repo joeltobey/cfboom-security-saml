@@ -39,7 +39,7 @@ component
   /*
    * In case of parsing EntitiesDescriptor, we can have more than one provider
    */
-  variables['_next'] = null;
+  property name="_next" type="cfboom.security.saml.saml2.metadata.Metadata" class="<T extends EntityDescriptor<T>>";
 
   public cfboom.security.saml.saml2.metadata.Metadata function init(cfboom.security.saml.saml2.metadata.EntityDescriptor other) {
     super.init( argumentCollection = arguments );
@@ -47,15 +47,20 @@ component
   }
 
   public cfboom.security.saml.saml2.metadata.EntityDescriptor function getNext() {
-    return variables._next;
+    return structKeyExists(variables, "_next") ? variables._next : null;
   }
 
   public cfboom.security.saml.saml2.metadata.Metadata function setNext(cfboom.security.saml.saml2.metadata.EntityDescriptor next) {
-    variables['_next'] = arguments.next;
+    if (structKeyExists(arguments, "next") && !isNull(arguments.next)) {
+      variables['_next'] = arguments.next;
+    }
+    else {
+      structDelete(variables, "_next");
+    }
     return this;
   }
 
   public boolean function hasNext() {
-    return structKeyExists(variables, "_next") && !isNull(variables._next);
+    return structKeyExists(variables, "_next");
   }
 }

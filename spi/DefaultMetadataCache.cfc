@@ -35,18 +35,15 @@ component
   property name="cache" inject="cachebox:IdPMetadataCache";
   property name="misses" inject="cachebox:IdPMetadataCacheMisses";
 
-  public cfboom.security.saml.spi.DefaultMetadataCache function init() {
+  /**
+   * @implementation.inject SamlImplementation@cfboom-security-saml
+   */
+  public cfboom.security.saml.spi.DefaultMetadataCache function init( required cfboom.security.saml.spi.SecuritySaml implementation ) {
+    variables['_XMLObjectSupport'] = arguments.implementation.getXMLObjectSupport();
+    variables['_XMLObjectProviderRegistrySupport'] = arguments.implementation.getXMLObjectProviderRegistrySupport();
     return this;
   }
 
-  public void function onDIComplete() {
-    //variables['_XMLObjectSupport'] = variables.InitializationService.getXMLObjectSupport();
-    //variables['_XMLObjectProviderRegistrySupport'] = variables.InitializationService.getXMLObjectProviderRegistrySupport();
-  }
-
-  /**
-   * Returns an org.opensaml.saml.saml2.metadata.impl.EntityDescriptorImpl (org.opensaml.saml.saml2.metadata.EntityDescriptor) object.
-   */
   public any function getMetadata(string uri, boolean skipSslValidation = false) {
     var hasMiss = misses.get(arguments.uri);
     if (!isNull(hasMiss)) {
@@ -61,9 +58,7 @@ component
         } else {
           metadata = variables.httpClient.get(arguments.uri).getFileContent();
         }
-        var metadataStream = variables.javaLoader.create("java.io.ByteArrayInputStream").init(metadata.getBytes());
-        data = variables._XMLObjectSupport.unmarshallFromInputStream( variables._XMLObjectProviderRegistrySupport.getParserPool(), metadataStream );
-        metadataStream.close();
+        data = metadata.getBytes();
         cache.set(arguments.uri, data);
       } catch (any ex) {
         misses.set(arguments.uri, ex);

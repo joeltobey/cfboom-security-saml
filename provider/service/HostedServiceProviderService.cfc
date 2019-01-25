@@ -38,7 +38,7 @@ component
    * @Override
    */
   public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProviderFromExternalProviderConfiguration(cfboom.security.saml.provider.config.ExternalProviderConfiguration c) {
-    var metadata = super.getRemoteProvider(arguments.c);
+    var metadata = super.getRemoteProviderFromExternalProviderConfiguration(arguments.c);
     if (!isNull(metadata) && isInstanceOf(arguments.c, "cfboom.security.saml.provider.service.config.ExternalIdentityProviderConfiguration")) {
       var ec = arguments.c;
       if (!isNull(ec.getNameId())) {
@@ -52,7 +52,7 @@ component
    * @Override
    */
   public cfboom.security.saml.saml2.metadata.Metadata function transformMetadata(string data) {
-    var metadata = getTransformer().fromXml(arguments.data);
+    var metadata = getTransformer().fromXml(arguments.data, null, null);
     var result = null;
     if (isInstanceOf(metadata, "cfboom.security.saml.saml2.metadata.IdentityProviderMetadata")) {
       result =  metadata;

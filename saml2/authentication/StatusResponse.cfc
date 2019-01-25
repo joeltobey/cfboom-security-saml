@@ -93,7 +93,10 @@ component
     return variables._signature;
   }
 
-  public cfboom.security.saml.saml2.authentication.StatusResponse function setSignature(cfboom.security.saml.saml2.signature.Signature signature) {
+  /**
+   * @signature.class cfboom.security.saml.saml2.signature.Signature
+   */
+  public cfboom.security.saml.saml2.authentication.StatusResponse function setSignature(any signature) {
     variables['_signature'] = arguments.signature;
     return this;
   }

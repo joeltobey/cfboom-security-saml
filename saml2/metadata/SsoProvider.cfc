@@ -73,7 +73,10 @@ component
     return variables._discovery;
   }
 
-  public cfboom.security.saml.saml2.metadata.SsoProvider function setDiscovery(cfboom.security.saml.saml2.metadata.Endpoint discovery) {
+  /**
+   * @discovery.class cfboom.security.saml.saml2.metadata.Endpoint
+   */
+  public cfboom.security.saml.saml2.metadata.SsoProvider function setDiscovery(any discovery) {
     variables['_discovery'] = arguments.discovery;
     return this;
   }
@@ -82,7 +85,10 @@ component
     return variables._requestInitiation;
   }
 
-  public cfboom.security.saml.saml2.metadata.SsoProvider function setRequestInitiation(cfboom.security.saml.saml2.metadata.Endpoint requestInitiation) {
+  /**
+   * @requestInitiation.class cfboom.security.saml.saml2.metadata.Endpoint
+   */
+  public cfboom.security.saml.saml2.metadata.SsoProvider function setRequestInitiation(any requestInitiation) {
     variables['_requestInitiation'] = arguments.requestInitiation;
     return this;
   }

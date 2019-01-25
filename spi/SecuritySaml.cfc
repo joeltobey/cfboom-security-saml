@@ -30,6 +30,8 @@ component
 
   property name="log" inject="logbox:logger:{this}";
 
+  property name="EncodingUtils" inject="EncodingUtils@cfboom-security-saml";
+
   variables['_hasInitCompleted'] = createObject("java","java.util.concurrent.atomic.AtomicBoolean").init(false);
 
   /**
@@ -72,16 +74,36 @@ component
   public any function toDuration(numeric millis) {
     throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'toDuration(java.lang.Long millis)'"));
   }
-/*
-public abstract String toXml(Saml2Object saml2Object);
 
-public abstract Saml2Object resolve(
-String xml, List<SimpleKey> verificationKeys, List<SimpleKey>
-localKeys
-);
+  public string function toXml(cfboom.security.saml.saml2.Saml2Object saml2Object) {
+    throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'toXml(saml2Object)'"));
+  }
 
-public abstract Saml2Object resolve(byte[] xml, List<SimpleKey> trustedKeys, List<SimpleKey> localKeys);
+  public cfboom.security.saml.saml2.Saml2Object function resolve(string xmlString, any verificationKeys, any localKeys) {
+    throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'resolve(xmlString, verificationKeys, localKeys)'"));
+  }
 
-public abstract Signature validateSignature(Saml2Object saml2Object, List<SimpleKey> trustedKeys);
-*/
+  public cfboom.security.saml.saml2.Saml2Object function resolveXmlBytes(any xmlBytes, any verificationKeys, any localKeys) {
+    throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'resolveXmlBytes(xmlBytes, verificationKeys, localKeys)'"));
+  }
+
+  public cfboom.security.saml.saml2.signature.Signature function validateSignature(cfboom.security.saml.saml2.Saml2Object saml2Object, any trustedKeys) {
+    throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'validateSignature(saml2Object, trustedKeys)'"));
+  }
+
+  public string function encode(any b) {
+    return EncodingUtils.encode(arguments.b);
+  }
+
+  public any function decode(String s) {
+    return EncodingUtils.decode(arguments.s);
+  }
+
+  public any function deflate(String s) {
+    return EncodingUtils.deflate(arguments.s);
+  }
+
+  public string function inflate(any b) {
+    return EncodingUtils.inflate(arguments.b);
+  }
 }

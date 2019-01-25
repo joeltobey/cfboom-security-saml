@@ -150,23 +150,22 @@ component
     return variables._cache;
   }
 /*
-	protected Endpoint getEndpoint(String baseUrl, String path, Binding binding, int index, boolean isDefault) {
-		UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl);
-		builder.pathSegment(path);
-		return getEndpoint(builder.build().toUriString(), binding, index, isDefault);
-	}
+  public cfboom.security.saml.saml2.metadata.Endpoint function getEndpoint(String baseUrl, String path, Binding binding, int index, boolean isDefault) {
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl);
+    builder.pathSegment(path);
+    return getEndpoint(builder.build().toUriString(), binding, index, isDefault);
+  }
 */
-/*
-	protected Endpoint getEndpoint(String url, Binding binding, int index, boolean isDefault) {
-		return
-			new Endpoint()
-				.setIndex(index)
-				.setBinding(binding)
-				.setLocation(url)
-				.setDefault(isDefault)
-				.setIndex(index);
-	}
-*/
+  public cfboom.security.saml.saml2.metadata.Endpoint function getEndpoint(string url, cfboom.security.saml.saml2.metadata.Binding binding, numeric index, boolean isDefault) {
+    return
+      variables.wirebox.getInstance("Endpoint@cfboom-security-saml")
+        .setIndex(arguments.index)
+        .setBinding(arguments.binding)
+        .setLocation(arguments.url)
+        .setDefault(arguments.isDefault)
+        .setIndex(arguments.index);
+  }
+
   public cfboom.security.saml.provider.service.ServiceProviderService function getHostedServiceProvider(cfboom.security.saml.provider.service.config.LocalServiceProviderConfiguration spConfig) {
     var basePath = arguments.spConfig.getBasePath();
 
@@ -186,6 +185,8 @@ component
         keys,
         prefix,
         aliasPath,
+        arguments.spConfig.getAssertionConsumerServicePath(),
+        arguments.spConfig.getSingleLogoutServicePath(),
         arguments.spConfig.getDefaultSigningAlgorithm(),
         arguments.spConfig.getDefaultDigest()
       );
@@ -205,13 +206,16 @@ component
     metadata.getServiceProvider().setWantAssertionsSigned(arguments.spConfig.isWantAssertionsSigned());
     metadata.getServiceProvider().setAuthnRequestsSigned(arguments.spConfig.isSignRequests());
 
-    return new cfboom.security.saml.provider.service.HostedServiceProviderService(
-      arguments.spConfig,
-      metadata,
-      getTransformer(),
-      getValidator(),
-      getCache()
-    );
+    var args = {};
+    args['name'] = "HostedServiceProviderService@cfboom-security-saml";
+    args['initArguments'] = {
+      configuration = arguments.spConfig,
+      metadata = metadata,
+      transformer = getTransformer(),
+      validator = getValidator(),
+      cache = getCache()
+    };
+    return variables.wirebox.getInstance( argumentCollection = args );
   }
 
   public cfboom.security.saml.saml2.metadata.ServiceProviderMetadata function serviceProviderMetadata(string baseUrl,
@@ -219,8 +223,24 @@ component
                                                                                                       any keys,
                                                                                                       string prefix,
                                                                                                       string aliasPath,
+                                                                                                      string assertionConsumerServicePath,
+                                                                                                      string singleLogoutServicePath,
                                                                                                       cfboom.security.saml.saml2.signature.AlgorithmMethod signAlgorithm,
                                                                                                       cfboom.security.saml.saml2.signature.DigestMethod signDigest) {
+    var assertionConsumerService = createObject("java","java.util.LinkedList").init();
+    if (!structKeyExists(arguments, "assertionConsumerServicePath") || isNull(arguments.assertionConsumerServicePath)) {
+      assertionConsumerService.add(getEndpoint(arguments.baseUrl & arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.POST, 0, true));
+      assertionConsumerService.add(getEndpoint(arguments.baseUrl & arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.REDIRECT, 1, false));
+    } else {
+      assertionConsumerService.add(getEndpoint(arguments.baseUrl & arguments.assertionConsumerServicePath, Binding.POST, 0, true));
+      assertionConsumerService.add(getEndpoint(arguments.baseUrl & arguments.assertionConsumerServicePath, Binding.REDIRECT, 1, false));
+    }
+    var singleLogoutService = createObject("java","java.util.LinkedList").init();
+    if (structKeyExists(arguments, "singleLogoutServicePath") || isNull(arguments.singleLogoutServicePath)) {
+      singleLogoutService.add(getEndpoint(arguments.baseUrl & arguments.prefix & "logout/alias/" & arguments.aliasPath, Binding.REDIRECT, 0, true));
+    } else {
+      singleLogoutService.add(getEndpoint(arguments.baseUrl & arguments.singleLogoutServicePath, Binding.REDIRECT, 0, true));
+    }
 
     return variables.wirebox.getInstance("ServiceProviderMetadata@cfboom-security-saml")
       .setEntityId(arguments.baseUrl)
@@ -232,19 +252,10 @@ component
             .setKeys(arguments.keys)
             .setWantAssertionsSigned(true)
             .setAuthnRequestsSigned(structKeyExists(arguments, "signingKey"))
-            .setAssertionConsumerService(
-              Arrays.asList([
-                getEndpoint(arguments.baseUrl, arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.POST, 0, true),
-                getEndpoint(arguments.baseUrl, arguments.prefix & "SSO/alias/" & arguments.aliasPath, Binding.REDIRECT, 1, false)
-              ])
-            )
+            .setAssertionConsumerService(assertionConsumerService)
             .setNameIds(Arrays.asList([NameId.PERSISTENT, NameId.EMAIL]))
             .setKeys(arguments.keys)
-            .setSingleLogoutService(
-              Arrays.asList([
-                getEndpoint(arguments.baseUrl, arguments.prefix & "logout/alias/" & arguments.aliasPath, Binding.REDIRECT, 0, true)
-              ])
-            )
+            .setSingleLogoutService(singleLogoutService)
         ])
       );
   }

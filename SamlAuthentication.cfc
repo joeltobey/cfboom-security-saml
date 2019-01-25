@@ -18,7 +18,7 @@
  * An authentication containing SAML information
  */
 interface
-  extends="org.springframework.security.core.Authentication"
+  extends="cfboom.security.core.Authentication"
   displayname="Interface SamlAuthentication"
 {
   /**
@@ -42,17 +42,17 @@ interface
    */
   public cfboom.security.saml.saml2.authentication.SubjectPrincipal function getSamlPrincipal();
 
-/**
- * returns the assertion object that was used to create this authentication object
- *
- * @return assertion representing authentication
- */
-    Assertion getAssertion();
+  /**
+   * returns the assertion object that was used to create this authentication object
+   *
+   * @return assertion representing authentication
+   */
+  public cfboom.security.saml.saml2.authentication.Assertion function getAssertion();
 
-/**
- * If the POST or REDIRECT contained a RelayState parameter this will be the value of it
- *
- * @return the RelayState parameter value, or null
- */
-    public string function getRelayState();
+  /**
+   * If the POST or REDIRECT contained a RelayState parameter this will be the value of it
+   *
+   * @return the RelayState parameter value, or null
+   */
+  public string function getRelayState();
 }

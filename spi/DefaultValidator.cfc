@@ -24,18 +24,30 @@ component
   displayname="Class DefaultValidator"
   output="false"
 {
-/*
-  private SpringSecuritySaml implementation;
-  private int responseSkewTimeMillis = 1000 * 60 * 2; //two minutes
-  private boolean allowUnsolicitedResponses = true;
-  private int maxAuthenticationAgeMillis = 1000 * 60 * 60 * 24; //24 hours
-  private Clock time = Clock.systemUTC();
-*/
+  property name="_implementation" type="cfboom.security.saml.spi.SecuritySaml";
+  property name="_responseSkewTimeMillis" type="numeric" javaType="int";
+  property name="_allowUnsolicitedResponses" type="boolean";
+  property name="_maxAuthenticationAgeMillis" type="numeric" javaType="int";
+
+  property name="_time" inject="time@cfboom-security-saml";
+
+  property name="NameId" inject="NameId@cfboom-security-saml";
+  property name="StatusCode" inject="StatusCode@cfboom-security-saml";
+
+  property name="DateUtils" inject="DateUtils@cfboom-security-saml";
+  property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
+
+  variables['Collections'] = createObject("java","java.util.Collections");
+  variables['Optional'] = createObject("java","java.util.Optional");
+
   /**
    * @implementation.inject SamlImplementation@cfboom-security-saml
    */
   public cfboom.security.saml.spi.DefaultValidator function init( required cfboom.security.saml.spi.SecuritySaml implementation ) {
     setImplementation( arguments.implementation );
+    setResponseSkewTimeMillis(1000 * 60 * 2); //two minutes
+    setAllowUnsolicitedResponses(true);
+    setMaxAuthenticationAgeMillis(1000 * 60 * 60 * 24); //24 hours
     return this;
   }
 
@@ -92,7 +104,8 @@ component
       throw("No validation implemented for class:" & arguments.saml2Object.getComponentName() & ". Unable to validate SAML object. No implementation.", "ValidationException");
     }
     if (!result.isSuccess()) {
-      throw("Unable to validate SAML object.", "ValidationException");
+      var ex = new cfboom.security.saml.validation.ValidationException("Unable to validate SAML object.", result);
+      throw(ex.getMessage(), "ValidationException");
     }
   }
 
@@ -126,21 +139,21 @@ component
     //signature
     if (requireAssertionSigned && (assertion.getSignature() == null || !assertion.getSignature().isValidated())) {
       return
-        new ValidationResult(assertion).addError(
-          new ValidationError("Assertion is not signed or signature was not validated")
+        new cfboom.security.saml.validation.ValidationResult(assertion).addError(
+          new cfboom.security.saml.validation.ValidationError("Assertion is not signed or signature was not validated")
         );
     }
 
-    if (responder == null) {
-      return new ValidationResult(assertion)
+    if (isNull(arguments.responder)) {
+      return new cfboom.security.saml.validation.ValidationResult(assertion)
         .addError("Remote provider for assertion was not found");
     }
 
     List<SubjectConfirmation> validConfirmations = new LinkedList<>();
-    ValidationResult assertionValidation = new ValidationResult(assertion);
+    var assertionValidation = new cfboom.security.saml.validation.ValidationResult(assertion);
     for (SubjectConfirmation conf : assertion.getSubject().getConfirmations()) {
 
-      assertionValidation.setErrors(emptyList());
+      assertionValidation.setErrors(Collections.emptyList());
       //verify assertion subject for BEARER
       if (!BEARER.equals(conf.getMethod())) {
         assertionValidation.addError("Invalid confirmation method:" + conf.getMethod());
@@ -151,7 +164,7 @@ component
       //1. data must not be null
       SubjectConfirmationData data = conf.getConfirmationData();
       if (data == null) {
-        assertionValidation.addError(new ValidationError("Empty subject confirmation data"));
+        assertionValidation.addError(new cfboom.security.saml.validation.ValidationError("Empty subject confirmation data"));
         continue;
       }
 
@@ -160,29 +173,29 @@ component
       // Not before forbidden by saml-profiles-2.0-os 558
       if (data.getNotBefore() != null) {
         assertionValidation.addError(
-          new ValidationError("Subject confirmation data should not have NotBefore date")
+          new cfboom.security.saml.validation.ValidationError("Subject confirmation data should not have NotBefore date")
         );
         continue;
       }
       //3. NotOnOfAfter must not be null and within skew
       if (data.getNotOnOrAfter() == null) {
         assertionValidation.addError(
-          new ValidationError("Subject confirmation data is missing NotOnOfAfter date")
+          new cfboom.security.saml.validation.ValidationError("Subject confirmation data is missing NotOnOfAfter date")
         );
         continue;
       }
 
       if (data.getNotOnOrAfter().plusMillis(getResponseSkewTimeMillis()).isBeforeNow()) {
         assertionValidation.addError(
-          new ValidationError(format("Invalid NotOnOrAfter date: '%s'", data.getNotOnOrAfter()))
+          new cfboom.security.saml.validation.ValidationError(format("Invalid NotOnOrAfter date: '%s'", data.getNotOnOrAfter()))
         );
       }
       //4. InResponseTo if it exists
       if (hasText(data.getInResponseTo())) {
-        if (mustMatchInResponseTo != null) {
-          if (!mustMatchInResponseTo.contains(data.getInResponseTo())) {
+        if (arguments.mustMatchInResponseTo != null) {
+          if (!arguments.mustMatchInResponseTo.contains(data.getInResponseTo())) {
             assertionValidation.addError(
-              new ValidationError(
+              new cfboom.security.saml.validation.ValidationError(
                 format("No match for InResponseTo: '%s' found", data.getInResponseTo())
               )
             );
@@ -191,7 +204,7 @@ component
         }
         else if (!isAllowUnsolicitedResponses()) {
           assertionValidation.addError(
-            new ValidationError(
+            new cfboom.security.saml.validation.ValidationError(
               "InResponseTo missing and system not configured to allow unsolicited messages")
           );
           continue;
@@ -199,7 +212,7 @@ component
       }
       //5. Recipient must match ACS URL
       if (!hasText(data.getRecipient())) {
-        assertionValidation.addError(new ValidationError("Assertion Recipient field missing"));
+        assertionValidation.addError(new cfboom.security.saml.validation.ValidationError("Assertion Recipient field missing"));
         continue;
       }
       else if (!compareURIs(
@@ -207,7 +220,7 @@ component
         data.getRecipient()
       )) {
         assertionValidation.addError(
-          new ValidationError("Invalid assertion Recipient field: " + data.getRecipient())
+          new cfboom.security.saml.validation.ValidationError("Invalid assertion Recipient field: " + data.getRecipient())
         );
         continue;
       }
@@ -225,137 +238,127 @@ component
     //6b. Use regular NameID
     if ((assertion.getSubject().getPrincipal()) == null) {
       //we have a valid assertion, that's the one we will be using
-      return new ValidationResult(assertion).addError("Assertion principal is missing");
+      return new cfboom.security.saml.validation.ValidationResult(assertion).addError("Assertion principal is missing");
     }
-    return new ValidationResult(assertion);
+    return new cfboom.security.saml.validation.ValidationResult(assertion);
   }
 */
-/*
+
   public cfboom.security.saml.validation.ValidationResult function validateResponse(cfboom.security.saml.saml2.authentication.Response response,
-                    List<String> mustMatchInResponseTo,
-                    ServiceProviderMetadata requester,
-                    IdentityProviderMetadata responder) {
-    String entityId = requester.getEntityId();
+                                                                                    any mustMatchInResponseTo,
+                                                                                    cfboom.security.saml.saml2.metadata.ServiceProviderMetadata requester,
+                                                                                    cfboom.security.saml.saml2.metadata.IdentityProviderMetadata responder) {
+    var entityId = arguments.requester.getEntityId();
 
-    if (response == null) {
-      return new ValidationResult(response).addError(new ValidationError("Response is null"));
+    if (isNull(arguments.response)) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(new cfboom.security.saml.validation.ValidationError("Response is null"));
     }
 
-    if (response.getStatus() == null || response.getStatus().getCode() == null) {
-      return new ValidationResult(response).addError(new ValidationError("Response status or code is null"));
+    if (isNull(arguments.response.getStatus()) || isNull(arguments.response.getStatus().getCode())) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(new cfboom.security.saml.validation.ValidationError("Response status or code is null"));
     }
 
-    StatusCode statusCode = response.getStatus().getCode();
-    if (statusCode != StatusCode.SUCCESS) {
-      return new ValidationResult(response).addError(
-        new ValidationError("An error response was returned: " + statusCode.toString())
+    var statusCode = arguments.response.getStatus().getCode();
+    if (statusCode.name() != variables.StatusCode.SUCCESS.name()) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(
+        new cfboom.security.saml.validation.ValidationError("An error response was returned: " & statusCode.toString())
       );
     }
 
-    if (responder == null) {
-      return new ValidationResult(response)
+    if (isNull(arguments.responder)) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response)
         .addError("Remote provider for response was not found");
     }
 
-    if (response.getSignature() != null && !response.getSignature().isValidated()) {
-      return new ValidationResult(response).addError(new ValidationError("No validated signature present"));
+    if (!isNull(arguments.response.getSignature()) && !arguments.response.getSignature().isValidated()) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(new cfboom.security.saml.validation.ValidationError("No validated signature present"));
     }
 
     //verify issue time
-    DateTime issueInstant = response.getIssueInstant();
+    var issueInstant = arguments.response.getIssueInstant();
     if (!isDateTimeSkewValid(getResponseSkewTimeMillis(), 0, issueInstant)) {
-      return new ValidationResult(response).addError(
-        new ValidationError("Issue time is either too old or in the future:" + issueInstant.toString())
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(
+        new cfboom.security.saml.validation.ValidationError("Issue time is either too old or in the future:" & issueInstant.toString())
       );
     }
 
     //validate InResponseTo
-    String replyTo = response.getInResponseTo();
+    var replyTo = arguments.response.getInResponseTo();
     if (!isAllowUnsolicitedResponses() && !hasText(replyTo)) {
-      return new ValidationResult(response).addError(
-        new ValidationError("InResponseTo is missing and unsolicited responses are disabled")
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(
+        new cfboom.security.saml.validation.ValidationError("InResponseTo is missing and unsolicited responses are disabled")
       );
     }
 
     if (hasText(replyTo)) {
-      if (!isAllowUnsolicitedResponses() && (mustMatchInResponseTo == null || !mustMatchInResponseTo
-        .contains(replyTo))) {
-        return new ValidationResult(response).addError(
-          new ValidationError("Invalid InResponseTo ID, not found in supplied list")
+      if (!isAllowUnsolicitedResponses() && (isNull(arguments.mustMatchInResponseTo) || !arguments.mustMatchInResponseTo.contains(replyTo))) {
+        return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(
+          new cfboom.security.saml.validation.ValidationError("Invalid InResponseTo ID, not found in supplied list")
         );
       }
     }
 
     //validate destination
-    if (hasText(response.getDestination()) && !compareURIs(requester.getServiceProvider()
-      .getAssertionConsumerService(), response.getDestination())) {
-      return new ValidationResult(response).addError(
-        new ValidationError("Destination mismatch: " + response.getDestination())
+    if (hasText(arguments.response.getDestination()) && !compareURIs(arguments.requester.getServiceProvider()
+      .getAssertionConsumerService(), arguments.response.getDestination())) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.response).addError(
+        new cfboom.security.saml.validation.ValidationError("Destination mismatch: " & arguments.response.getDestination())
       );
     }
 
     //validate issuer
     //name id if not null should be "urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
     //value should be the entity ID of the responder
-    ValidationResult result = verifyIssuer(response.getIssuer(), responder);
-    if (result != null) {
+    var result = verifyIssuer(arguments.response.getIssuer(), arguments.responder);
+    if (!isNull(result)) {
       return result;
     }
 
-    boolean requireAssertionSigned = requester.getServiceProvider().isWantAssertionsSigned();
-    if (response.getSignature() != null) {
-      requireAssertionSigned = requireAssertionSigned && (!response.getSignature().isValidated());
+    var requireAssertionSigned = arguments.requester.getServiceProvider().isWantAssertionsSigned();
+    if (!isNull(arguments.response.getSignature())) {
+      requireAssertionSigned = requireAssertionSigned && (!arguments.response.getSignature().isValidated());
     }
 
-
-    Assertion validAssertion = null;
-    ValidationResult assertionValidation = new ValidationResult(response);
+    var validAssertion = null;
+    var assertionValidation = new cfboom.security.saml.validation.ValidationResult(arguments.response);
     //DECRYPT ENCRYPTED ASSERTIONS
-    for (Assertion assertion : response.getAssertions()) {
+    for (var assertion in arguments.response.getAssertions()) {
 
-      ValidationResult assertionResult = validate(
+      var assertionResult = validate(
         assertion,
-        mustMatchInResponseTo,
-        requester,
-        responder, requireAssertionSigned
+        arguments.mustMatchInResponseTo,
+        arguments.requester,
+        arguments.responder, requireAssertionSigned
       );
       if (!assertionResult.hasErrors()) {
         validAssertion = assertion;
         break;
       }
     }
-    if (validAssertion == null) {
-      assertionValidation.addError(new ValidationError("No valid assertion with principal found."));
+    if (isNull(validAssertion)) {
+      assertionValidation.addError(new cfboom.security.saml.validation.ValidationError("No valid assertion with principal found."));
       return assertionValidation;
     }
 
-    for (AuthenticationStatement statement : ofNullable(validAssertion.getAuthenticationStatements())
-      .orElse(emptyList())) {
+    for (var statement in Optional.ofNullable(validAssertion.getAuthenticationStatements())
+      .orElse(Collections.emptyList())) {
       //VERIFY authentication statements
       if (!isDateTimeSkewValid(
         getResponseSkewTimeMillis(),
         getMaxAuthenticationAgeMillis(),
         statement.getAuthInstant()
       )) {
-        return new ValidationResult(response)
+        return new cfboom.security.saml.validation.ValidationResult(arguments.response)
           .addError(
-            format(
-              "Authentication statement is too old to be used with value: '%s' current time: '%s'",
-              toZuluTime(statement.getAuthInstant()),
-              toZuluTime(new DateTime())
-            )
+            "Authentication statement is too old to be used with value: '#DateUtils.toZuluTime(statement.getAuthInstant())#' current time: '#DateUtils.toZuluTime(variables.javaLoader.create("org.joda.time.DateTime").init())#'"
           );
       }
 
       if (statement.getSessionNotOnOrAfter() != null && statement.getSessionNotOnOrAfter().isBeforeNow
         ()) {
-        return new ValidationResult(response)
+        return new cfboom.security.saml.validation.ValidationResult(arguments.response)
           .addError(
-            format(
-              "Authentication session expired on: '%s', current time: '%s'",
-              toZuluTime(statement.getSessionNotOnOrAfter()),
-              toZuluTime(new DateTime())
-            )
+            "Authentication session expired on: '#DateUtils.toZuluTime(statement.getSessionNotOnOrAfter())#', current time: '#DateUtils.toZuluTime(variables.javaLoader.create("org.joda.time.DateTime").init())#'"
           );
       }
 
@@ -363,33 +366,29 @@ component
       //statement.getAuthenticationContext().getClassReference()
     }
 
-    Conditions conditions = validAssertion.getConditions();
-    if (conditions != null) {
+    var conditions = validAssertion.getConditions();
+    if (!isNull(conditions)) {
       //VERIFY conditions
-      if (conditions.getNotBefore() != null && conditions.getNotBefore().minusMillis
+      if (!isNull(conditions.getNotBefore()) && conditions.getNotBefore().minusMillis
         (getResponseSkewTimeMillis()).isAfterNow()) {
-        return new ValidationResult(response)
-          .addError("Conditions expired (not before): " + conditions.getNotBefore());
+        return new cfboom.security.saml.validation.ValidationResult(arguments.response)
+          .addError("Conditions expired (not before): " & conditions.getNotBefore());
       }
 
-      if (conditions.getNotOnOrAfter() != null && conditions.getNotOnOrAfter().plusMillis
+      if (!isNull(conditions.getNotOnOrAfter()) && conditions.getNotOnOrAfter().plusMillis
         (getResponseSkewTimeMillis()).isBeforeNow()) {
-        return new ValidationResult(response)
-          .addError("Conditions expired (not on or after): " + conditions.getNotOnOrAfter());
+        return new cfboom.security.saml.validation.ValidationResult(arguments.response)
+          .addError("Conditions expired (not on or after): " & conditions.getNotOnOrAfter());
       }
 
-      for (AssertionCondition c : conditions.getCriteria()) {
-        if (c instanceof AudienceRestriction) {
-          AudienceRestriction ac = (AudienceRestriction) c;
+      for (var c in conditions.getCriteria()) {
+        if (isInstanceOf(c, "cfboom.security.saml.saml2.authentication.AudienceRestriction")) {
+          var ac = c;
           ac.evaluate(entityId, time());
           if (!ac.isValid()) {
-            return new ValidationResult(response)
+            return new cfboom.security.saml.validation.ValidationResult(arguments.response)
               .addError(
-                format(
-                  "Audience restriction evaluation failed for assertion condition. Expected '%s' Was '%s'",
-                  entityId,
-                  ac.getAudiences()
-                )
+                "Audience restriction evaluation failed for assertion condition. Expected '#entityId#' Was '#ac.getAudiences()#'"
               );
           }
         }
@@ -397,122 +396,113 @@ component
     }
 
     //the only assertion that we validated - may not be the first one
-    response.setAssertions(Arrays.asList(validAssertion));
-    return new ValidationResult(response);
+    arguments.response.setAssertions(Arrays.asList(validAssertion));
+    return new cfboom.security.saml.validation.ValidationResult(arguments.response);
   }
-*/
-/*
-  protected boolean isDateTimeSkewValid(int skewMillis, int forwardMillis, DateTime time) {
-    if (time == null) {
+
+  public boolean function isDateTimeSkewValid(numeric skewMillis, numeric forwardMillis, any time) {
+    if (isNull(arguments.time)) {
       return false;
     }
-    final DateTime reference = new DateTime();
-    final Interval validTimeInterval = new Interval(
-      reference.minusMillis(skewMillis + forwardMillis),
-      reference.plusMillis(skewMillis)
+    var reference = variables.javaLoader.create("org.joda.time.DateTime").init();
+    var validTimeInterval = variables.javaLoader.create("org.joda.time.Interval").init(
+      reference.minusMillis(javaCast("int", arguments.skewMillis + arguments.forwardMillis)),
+      reference.plusMillis(arguments.skewMillis)
     );
-    return validTimeInterval.contains(time);
+    return validTimeInterval.contains(arguments.time);
   }
-*/
-/*
-  public int getResponseSkewTimeMillis() {
-    return responseSkewTimeMillis;
+
+  public numeric function getResponseSkewTimeMillis() {
+    return variables._responseSkewTimeMillis;
   }
-*/
-/*
-  public DefaultValidator setResponseSkewTimeMillis(int responseSkewTimeMillis) {
-    this.responseSkewTimeMillis = responseSkewTimeMillis;
+
+  public cfboom.security.saml.spi.DefaultValidator function setResponseSkewTimeMillis(numeric responseSkewTimeMillis) {
+    variables['_responseSkewTimeMillis'] = javaCast("int", arguments.responseSkewTimeMillis);
     return this;
   }
-*/
-/*
-  public boolean isAllowUnsolicitedResponses() {
-    return allowUnsolicitedResponses;
+
+  public boolean function isAllowUnsolicitedResponses() {
+    return variables._allowUnsolicitedResponses;
   }
-*/
-/*
-  public DefaultValidator setAllowUnsolicitedResponses(boolean allowUnsolicitedResponses) {
-    this.allowUnsolicitedResponses = allowUnsolicitedResponses;
+
+  public cfboom.security.saml.spi.DefaultValidator function setAllowUnsolicitedResponses(boolean allowUnsolicitedResponses) {
+    variables['_allowUnsolicitedResponses'] = arguments.allowUnsolicitedResponses;
     return this;
   }
-*/
-/*
-  protected boolean compareURIs(List<Endpoint> endpoints, String uri) {
-    for (Endpoint ep : endpoints) {
-      if (compareURIs(ep.getLocation(), uri)) {
-        return true;
-      }
-    }
-    return false;
-  }
-*/
-/*
-  public cfboom.security.saml.validation.ValidationResult function verifyIssuer(Issuer issuer, Metadata entity) {
-    if (issuer != null) {
-      if (!entity.getEntityId().equals(issuer.getValue())) {
-        return new ValidationResult(entity)
+
+  public cfboom.security.saml.validation.ValidationResult function verifyIssuer(cfboom.security.saml.saml2.authentication.Issuer issuer, cfboom.security.saml.saml2.metadata.Metadata entity) {
+    if (!isNull(arguments.issuer)) {
+      if (!arguments.entity.getEntityId().equals(arguments.issuer.getValue())) {
+        return new cfboom.security.saml.validation.ValidationResult(arguments.entity)
           .addError(
-            new ValidationError(
-              format(
-                "Issuer mismatch. Expected: '%s' Actual: '%s'",
-                entity.getEntityId(),
-                issuer.getValue()
-              )
+            new cfboom.security.saml.validation.ValidationError(
+              "Issuer mismatch. Expected: '#arguments.entity.getEntityId()#' Actual: '#arguments.issuer.getValue()#'"
             )
           );
       }
-      if (issuer.getFormat() != null && !issuer.getFormat().equals(ENTITY)) {
-        return new ValidationResult(entity)
+      if (!isNull(arguments.issuer.getFormat()) && arguments.issuer.getFormat().toString() != NameId.ENTITY.toString()) {
+        return new cfboom.security.saml.validation.ValidationResult(arguments.entity)
           .addError(
-            new ValidationError(
-              format(
-                "Issuer name format mismatch. Expected: '%s' Actual: '%s'",
-                ENTITY,
-                issuer.getFormat()
-              )
+            new cfboom.security.saml.validation.ValidationError(
+              "Issuer name format mismatch. Expected: '#NameId.ENTITY.toString()#' Actual: '#arguments.issuer.getFormat().toString()#'"
             )
           );
       }
     }
     return null;
   }
-*/
-/*
-  public int getMaxAuthenticationAgeMillis() {
-    return maxAuthenticationAgeMillis;
+
+  public numeric function getMaxAuthenticationAgeMillis() {
+    return variables._maxAuthenticationAgeMillis;
   }
-*/
-/*
-  public Clock time() {
-    return time;
+
+  public any function time() {
+    return variables._time;
   }
-*/
-/*
-  protected boolean compareURIs(String uri1, String uri2) {
-    if (uri1 == null && uri2 == null) {
-      return true;
+
+  public boolean function compareURIs(any endpoints, string uri) {
+    if (isValid("string", arguments.endpoints)) {
+      return doCompareURIs(arguments.endpoints, arguments.uri);
     }
-    try {
-      new URI(uri1);
-      new URI(uri2);
-      return removeQueryString(uri1).equalsIgnoreCase(removeQueryString(uri2));
-    } catch (URISyntaxException e) {
+    else {
+      for (var ep in arguments.endpoints) {
+        if (doCompareURIs(ep.getLocation(), arguments.uri)) {
+          return true;
+        }
+      }
       return false;
     }
   }
-*/
-/*
-  public String removeQueryString(String uri) {
-    int queryStringIndex = uri.indexOf('?');
-    if (queryStringIndex >= 0) {
-      return uri.substring(0, queryStringIndex);
+
+  private boolean function doCompareURIs(string uri1, string uri2) {
+    if (isNull(arguments.uri1) && isNull(arguments.uri2)) {
+      return true;
     }
-    return uri;
+    try {
+      createObject("java","java.net.URI").init(arguments.uri1);
+      createObject("java","java.net.URI").init(arguments.uri2);
+      return removeQueryString(arguments.uri1).equalsIgnoreCase(removeQueryString(arguments.uri2));
+    } catch (java.net.URISyntaxException e) {
+      return false;
+    }
   }
-*/
-/*
-  public void setMaxAuthenticationAgeMillis(int maxAuthenticationAgeMillis) {
-    this.maxAuthenticationAgeMillis = maxAuthenticationAgeMillis;
+
+  public string function removeQueryString(string uri) {
+    var queryStringIndex = arguments.uri.indexOf('?');
+    if (queryStringIndex >= 0) {
+      return arguments.uri.substring(0, queryStringIndex);
+    }
+    return arguments.uri;
   }
-*/
+
+  public void function setMaxAuthenticationAgeMillis(numeric maxAuthenticationAgeMillis) {
+    variables['_maxAuthenticationAgeMillis'] = javaCast("int", arguments.maxAuthenticationAgeMillis);
+  }
+
+  private boolean function hasText( string str ) {
+    if (!structKeyExists(arguments, "str"))
+      return false;
+    var strData = trim(arguments.str);
+    return !strData.isEmpty();
+  }
 }

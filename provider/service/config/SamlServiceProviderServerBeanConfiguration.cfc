@@ -46,23 +46,30 @@ component
       )
       .setServiceProvider(
         variables.wirebox.getInstance("LocalServiceProviderConfiguration@cfboom-security-saml")
-        .setPrefix(variables.settings['service-provider']['prefix'])
-        .setAlias(variables.settings['service-provider']['alias'])
-        .setEntityId(variables.settings['service-provider']['entity-id'])
-        .setSignMetadata(variables.settings['service-provider']['sign-metadata'])
-        .setSignRequests(variables.settings['service-provider']['sign-requests'])
-        .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
-        .setDefaultDigest(DigestMethod.SHA256)
-        .setNameIds(Arrays.asList(variables.settings['service-provider']['name-ids']))
-        .setKeys(variables.wirebox.getInstance("RotatingKeys@cfboom-security-saml")
-        .setActive(variables.wirebox.getInstance("SimpleKey@cfboom-security-saml")
-          .setName(variables.settings['service-provider']['keys']['active']['name'])
-          .setPrivateKey(variables.settings['service-provider']['keys']['active']['private-key'])
-          .setPassphrase(variables.settings['service-provider']['keys']['active']['passphrase'])
-          .setCertificate(variables.settings['service-provider']['keys']['active']['certificate'])
-        ))
-        .setProviders(createObject("java","java.util.LinkedList").init())
+          .setBasePath(variables.settings['service-provider']['base-url'])
+          .setPrefix(variables.settings['service-provider']['prefix'])
+          .setAlias(variables.settings['service-provider']['alias'])
+          .setEntityId(variables.settings['service-provider']['entity-id'])
+          .setSignMetadata(variables.settings['service-provider']['sign-metadata'])
+          .setSignRequests(variables.settings['service-provider']['sign-requests'])
+          .setDefaultSigningAlgorithm(AlgorithmMethod.RSA_SHA256)
+          .setDefaultDigest(DigestMethod.SHA256)
+          .setNameIds(Arrays.asList(variables.settings['service-provider']['name-ids']))
+          .setKeys(variables.wirebox.getInstance("RotatingKeys@cfboom-security-saml")
+          .setActive(variables.wirebox.getInstance("SimpleKey@cfboom-security-saml")
+            .setName(variables.settings['service-provider']['keys']['active']['name'])
+            .setPrivateKey(variables.settings['service-provider']['keys']['active']['private-key'])
+            .setPassphrase(variables.settings['service-provider']['keys']['active']['passphrase'])
+            .setCertificate(variables.settings['service-provider']['keys']['active']['certificate'])
+          ))
+          .setProviders(createObject("java","java.util.LinkedList").init())
       );
+    if (structKeyExists(variables.settings['service-provider'], "assertion-consumer-service-path")) {
+      configuration.getServiceProvider().setAssertionConsumerServicePath(variables.settings['service-provider']['assertion-consumer-service-path']);
+    }
+    if (structKeyExists(variables.settings['service-provider'], "single-logout-service-path")) {
+        configuration.getServiceProvider().setSingleLogoutServicePath(variables.settings['service-provider']['single-logout-service-path']);
+    }
     if (structKeyExists(variables.settings['service-provider']['keys'], "stand-by")) {
       var keys = configuration.getServiceProvider().getKeys();
       var standBy = createObject("java","java.util.LinkedList").init();
@@ -85,8 +92,6 @@ component
         var provider = variables.settings.providers[key];
         var eipc = variables.wirebox.getInstance("ExternalIdentityProviderConfiguration@cfboom-security-saml");
         eipc.setAlias(provider.alias);
-        if (structKeyExists(provider, "recipient-routed-url"))
-          eipc.setRecipientRoutedUrl(provider['recipient-routed-url']);
         if (structKeyExists(provider, "metadata"))
           eipc.setMetadata(provider['metadata']);
         if (structKeyExists(provider, "link-text"))

@@ -79,7 +79,12 @@ component
   }
 
   public cfboom.security.saml.saml2.authentication.Assertion function setIssuer(cfboom.security.saml.saml2.authentication.Issuer issuer) {
-    variables['_issuer'] = arguments.issuer;
+    if (isInstanceOf(arguments.issuer, "cfboom.security.saml.saml2.authentication.Issuer")) {
+      variables['_issuer'] = arguments.issuer;
+    } else {
+      variables['_issuer'] = new cfboom.security.saml.saml2.authentication.Issuer();
+      variables._issuer.setValue(arguments.issuer);
+    }
     return this;
   }
 
@@ -87,7 +92,10 @@ component
     return variables._signature;
   }
 
-  public cfboom.security.saml.saml2.authentication.Assertion function setSignature(cfboom.security.saml.saml2.signature.Signature signature) {
+  /**
+   * @signature.class cfboom.security.saml.saml2.signature.Signature
+   */
+  public cfboom.security.saml.saml2.authentication.Assertion function setSignature(any signature) {
     variables['_signature'] = arguments.signature;
     return this;
   }
@@ -149,12 +157,6 @@ component
 
   public cfboom.security.saml.saml2.signature.DigestMethod function getDigest() {
     return variables._digest;
-  }
-
-  public cfboom.security.saml.saml2.authentication.Assertion function setIssuer(string issuer) {
-    variables['_issuer'] = new cfboom.security.saml.saml2.authentication.Issuer();
-    variables._issuer.setValue(arguments.issuer);
-    return this;
   }
 
   public any function getAttributes(string name) {

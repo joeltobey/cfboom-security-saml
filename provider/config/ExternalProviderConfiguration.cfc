@@ -25,7 +25,6 @@ component
   //private String alias;
   //private String metadata;
   //private String linktext;
-  //private String recipientRoutedUrl;
   variables['_skipSslValidation'] = false;
   variables['_metadataTrustCheck'] = false;
   variables['_verificationKeys'] = createObject("java","java.util.LinkedList").init();
@@ -65,16 +64,6 @@ component
 
   public cfboom.security.saml.provider.config.ExternalProviderConfiguration function setLinktext(string linktext) {
     variables['_linktext'] = arguments.linktext;
-    return this;
-  }
-
-  public string function getRecipientRoutedUrl() {
-    if (structKeyExists(variables, "_recipientRoutedUrl"))
-      return variables._recipientRoutedUrl;
-  }
-
-  public cfboom.security.saml.provider.config.ExternalProviderConfiguration function setRecipientRoutedUrl(string recipientRoutedUrl) {
-    variables['_recipientRoutedUrl'] = arguments.recipientRoutedUrl;
     return this;
   }
 

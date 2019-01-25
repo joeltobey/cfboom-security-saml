@@ -23,7 +23,25 @@ component
   displayname="Class OpenSamlImplementation"
   output="false"
 {
+  property name="AlgorithmMethod" inject="AlgorithmMethod@cfboom-security-saml";
+  property name="AttributeNameFormat" inject="AttributeNameFormat@cfboom-security-saml";
+  property name="AuthenticationContextClassReference" inject="AuthenticationContextClassReference@cfboom-security-saml";
+  property name="Binding" inject="Binding@cfboom-security-saml";
+  property name="CanonicalizationMethod" inject="CanonicalizationMethod@cfboom-security-saml";
+  property name="DigestMethod" inject="DigestMethod@cfboom-security-saml";
+  property name="KeyType" inject="KeyType@cfboom-security-saml";
+  property name="NameId" inject="NameId@cfboom-security-saml";
+  property name="Namespace" inject="Namespace@cfboom-security-saml";
+  property name="StatusCode" inject="StatusCode@cfboom-security-saml";
+  property name="SubjectConfirmationMethod" inject="SubjectConfirmationMethod@cfboom-security-saml";
+
+  property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
+
   variables['Arrays'] = createObject("java", "java.util.Arrays");
+  variables['Collections'] = createObject("java","java.util.Collections");
+  variables['Optional'] = createObject("java","java.util.Optional");
+  variables['StandardCharsets'] = createObject("java","java.nio.charset.StandardCharsets");
+  variables['UUID'] = createObject("java","java.util.UUID");
 
   /**
    * @time.type java.time.Clock
@@ -32,6 +50,11 @@ component
   public cfboom.security.saml.spi.opensaml.OpenSamlImplementation function init( required any time) {
     super.init( arguments.time );
     return this;
+  }
+
+  public void function onDIComplete() {
+    variables['Encrypter'] = variables.javaLoader.create("org.opensaml.saml.saml2.encryption.Encrypter");
+    variables['JCEMapper'] = variables.javaLoader.create("org.apache.xml.security.algorithms.JCEMapper");
   }
 
   public any function getXMLObjectSupport() {
@@ -88,6 +111,9 @@ component
     variables['Extensions'] = variables.javaLoader.create("org.opensaml.saml.saml2.metadata.Extensions");
     variables['ConfigurationService'] = variables.javaLoader.create("org.opensaml.core.config.ConfigurationService");
     variables['DOMTypeSupport'] = variables.javaLoader.create("net.shibboleth.utilities.java.support.xml.DOMTypeSupport");
+    variables['SignatureValidator'] = variables.javaLoader.create("org.opensaml.xmlsec.signature.support.SignatureValidator");
+    variables['RequestInitiator'] = variables.javaLoader.create("org.opensaml.saml.ext.saml2mdreqinit.RequestInitiator");
+    variables['DiscoveryResponse'] = variables.javaLoader.create("org.opensaml.saml.ext.idpdisco.DiscoveryResponse");
     variables['_XMLObjectSupport'] = variables.javaLoader.create("org.opensaml.core.xml.util.XMLObjectSupport");
     variables['_XMLObjectProviderRegistrySupport'] = variables.javaLoader.create("org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport");
     variables['_parserPool'] = variables.javaLoader.create("net.shibboleth.utilities.java.support.xml.BasicParserPool").init();
@@ -133,7 +159,7 @@ component
       registry = variables.ConfigurationService.get( variables.javaLoader.loadClass("org.opensaml.core.xml.config.XMLObjectProviderRegistry") );
     }
     registry.setParserPool(variables._parserPool);
-    var encryptedKeyResolver = variables.javaLoader.create("org.opensaml.xmlsec.encryption.support.ChainingEncryptedKeyResolver").init(
+    variables['_encryptedKeyResolver'] = variables.javaLoader.create("org.opensaml.xmlsec.encryption.support.ChainingEncryptedKeyResolver").init(
       Arrays.asList([
         variables.javaLoader.create("org.opensaml.xmlsec.encryption.support.InlineEncryptedKeyResolver").init(),
         variables.javaLoader.create("org.opensaml.saml.saml2.encryption.EncryptedElementTypeEncryptedKeyResolver").init(),
@@ -169,7 +195,7 @@ component
   }
 
 /*
-  public string function toXml(Saml2Object saml2Object) {
+  public string function toXml(cfboom.security.saml.saml2.Saml2Object saml2Object) {
     XMLObject result = null;
     if (saml2Object instanceof AuthenticationRequest) {
       result = internalToXml((AuthenticationRequest) saml2Object);
@@ -199,644 +225,603 @@ component
     );
   }
 */
-/*
-	@Override
-	public Saml2Object resolve(String xml, List<SimpleKey> verificationKeys, List<SimpleKey> localKeys) {
-		return resolve(xml.getBytes(UTF_8), verificationKeys, localKeys);
-	}
-*/
-/*
-	public Saml2Object resolve(byte[] xml, List<SimpleKey> verificationKeys, List<SimpleKey> localKeys) {
-		XMLObject parsed = parse(xml);
-		Signature signature = validateSignature((SignableSAMLObject) parsed, verificationKeys);
-		Saml2Object result = null;
-		if (parsed instanceof EntityDescriptor) {
-			result = resolveMetadata((EntityDescriptor) parsed)
-				.setSignature(signature);
-		}
-		else if (parsed instanceof EntitiesDescriptor) {
-			result = resolveMetadata((EntitiesDescriptor) parsed, verificationKeys, localKeys);
-		}
-		else if (parsed instanceof AuthnRequest) {
-			result = resolveAuthenticationRequest((AuthnRequest) parsed)
-				.setSignature(signature);
-		}
-		else if (parsed instanceof org.opensaml.saml.saml2.core.Assertion) {
-			result = resolveAssertion((org.opensaml.saml.saml2.core.Assertion) parsed, verificationKeys, localKeys);
-		}
-		else if (parsed instanceof org.opensaml.saml.saml2.core.Response) {
-			result = resolveResponse((org.opensaml.saml.saml2.core.Response) parsed, verificationKeys, localKeys)
-				.setSignature(signature);
-		}
-		else if (parsed instanceof org.opensaml.saml.saml2.core.LogoutRequest) {
-			result = resolveLogoutRequest(
-				(org.opensaml.saml.saml2.core.LogoutRequest) parsed,
-				verificationKeys,
-				localKeys
-			)
-				.setSignature(signature);
-		}
-		else if (parsed instanceof org.opensaml.saml.saml2.core.LogoutResponse) {
-			result = resolveLogoutResponse(
-				(org.opensaml.saml.saml2.core.LogoutResponse) parsed,
-				verificationKeys,
-				localKeys
-			)
-				.setSignature(signature);
-		}
-		if (result != null) {
-			if (result instanceof ImplementationHolder) {
-				((ImplementationHolder) result).setImplementation(parsed);
-				((ImplementationHolder) result).setOriginalXML(new String(xml, StandardCharsets.UTF_8));
-			}
-			return result;
-		}
-		throw new SamlException("Deserialization not yet supported for class: " + parsed.getClass());
-	}
-*/
-/*
-	@Override
-	public Signature validateSignature(Saml2Object saml2Object, List<SimpleKey> trustedKeys) {
-		if (saml2Object == null || saml2Object.getImplementation() == null) {
-			throw new SamlException("No object to validate signature against.");
-		}
+  /**
+   * @Override
+   */
+  public cfboom.security.saml.saml2.Saml2Object function resolve(string xmlString, any verificationKeys, any localKeys) {
+    return resolveXmlBytes(arguments.xmlString.getBytes(StandardCharsets.UTF_8), arguments.verificationKeys, arguments.localKeys);
+  }
 
-		if (trustedKeys == null || trustedKeys.isEmpty()) {
-			throw new SamlKeyException("At least one verification key has to be provided");
-		}
+  /**
+   * @Override
+   */
+  public cfboom.security.saml.saml2.Saml2Object function resolveXmlBytes(any xmlBytes, any verificationKeys, any localKeys) {
+    var parsed = parse(arguments.xmlBytes); // XMLObject
+    var signature = validateSignature(parsed, arguments.verificationKeys); // Signature
 
-		if (saml2Object.getImplementation() instanceof SignableSAMLObject) {
-			return validateSignature((SignableSAMLObject) saml2Object.getImplementation(), trustedKeys);
-		}
-		else {
-			throw new SamlException(
-				"Unrecognized object type:" + saml2Object.getImplementation().getClass().getName()
-			);
-		}
-	}
-*/
-/*
-	public Signature validateSignature(SignableSAMLObject object, List<SimpleKey> keys) {
-		Signature result = null;
-		if (object.isSigned() && keys != null && !keys.isEmpty()) {
-			SignatureException last = null;
-			for (SimpleKey key : keys) {
-				try {
-					Credential credential = getCredential(key, getCredentialsResolver(key));
-					SignatureValidator.validate(object.getSignature(), credential);
-					last = null;
-					result = getSignature(object)
-						.setValidated(true)
-						.setValidatingKey(key);
-					break;
-				} catch (SignatureException e) {
-					last = e;
-				}
-			}
-			if (last != null) {
-				throw new org.springframework.security.saml.saml2.signature.SignatureException(
-					"Signature validation against a " + object.getClass().getName() +
-						" object failed using " + keys.size() + (keys.size() == 1 ? " key." : " keys."),
-					last
-				);
-			}
-		}
-		return result;
-	}
-*/
-/*
-	public Credential getCredential(SimpleKey key, KeyStoreCredentialResolver resolver) {
-		try {
-			CriteriaSet cs = new CriteriaSet();
-			EntityIdCriterion criteria = new EntityIdCriterion(key.getName());
-			cs.add(criteria);
-			return resolver.resolveSingle(cs);
-		} catch (ResolverException e) {
-			throw new SamlKeyException("Can't obtain SP private key", e);
-		}
-	}
-*/
-/*
-	public KeyStoreCredentialResolver getCredentialsResolver(SimpleKey key) {
-		KeyStore ks = getSamlKeyStoreProvider().getKeyStore(key);
-		Map<String, String> passwords = hasText(key.getPrivateKey()) ?
-			Collections.singletonMap(key.getName(), key.getPassphrase()) :
-			Collections.emptyMap();
-		KeyStoreCredentialResolver resolver = new KeyStoreCredentialResolver(
-			ks,
-			passwords
-		);
-		return resolver;
-	}
-*/
-/*
-	protected Signature getSignature(SignableSAMLObject target) {
-		org.opensaml.xmlsec.signature.Signature signature = target.getSignature();
-		Signature result = null;
-		if (signature != null && signature instanceof SignatureImpl) {
-			SignatureImpl impl = (SignatureImpl) signature;
-			try {
-				result = new Signature()
-					.setSignatureAlgorithm(AlgorithmMethod.fromUrn(impl.getSignatureAlgorithm()))
-					.setCanonicalizationAlgorithm(CanonicalizationMethod.fromUrn(impl
-						.getCanonicalizationAlgorithm()))
-					.setSignatureValue(org.apache.xml.security.utils.Base64.encode(impl.getXMLSignature()
-						.getSignatureValue()))
-				;
-				//TODO extract the digest value
-				for (ContentReference ref :
-					ofNullable(signature.getContentReferences()).orElse(emptyList())) {
-					if (ref instanceof SAMLObjectContentReference) {
-						SAMLObjectContentReference sref = (SAMLObjectContentReference) ref;
-						result.setDigestAlgorithm(DigestMethod.fromUrn(sref.getDigestAlgorithm()));
-					}
-				}
+    var result = null; // Saml2Object
+    if (isInstanceOf(parsed, "org.opensaml.saml.saml2.metadata.EntityDescriptor")) {
+      result = resolveMetadataFromEntityDescriptor(parsed).setSignature(signature);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.metadata.EntitiesDescriptor")) {
+      result = resolveMetadataFromEntitiesDescriptor(parsed, arguments.verificationKeys, arguments.localKeys);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.core.AuthnRequest")) {
+      result = resolveAuthenticationRequest(parsed).setSignature(signature);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.core.Assertion")) {
+      result = resolveAssertion(parsed, arguments.verificationKeys, arguments.localKeys);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.core.Response")) {
+      result = resolveResponse(parsed, arguments.verificationKeys, arguments.localKeys).setSignature(signature);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.core.LogoutRequest")) {
+      result = resolveLogoutRequest(parsed, arguments.verificationKeys, arguments.localKeys).setSignature(signature);
+    }
+    else if (isInstanceOf(parsed, "org.opensaml.saml.saml2.core.LogoutResponse")) {
+      result = resolveLogoutResponse(parsed, arguments.verificationKeys, arguments.localKeys).setSignature(signature);
+    }
+    if (!isNull(result)) {
+      if (isInstanceOf(result, "cfboom.security.saml.saml2.ImplementationHolder")) {
+        result.setImplementation(parsed);
+        result.setOriginalXML(createObject("java","java.lang.String").init(arguments.xmlBytes, StandardCharsets.UTF_8));
+      }
+      return result;
+    }
+    throw("Deserialization not yet supported for class: " & parsed.getClass().getName(), "SamlException");
+  }
 
-			} catch (XMLSignatureException e) {
-				//TODO - ignore for now
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected EncryptedAssertion encryptAssertion(org.opensaml.saml.saml2.core.Assertion assertion,
-												  SimpleKey key,
-												  KeyEncryptionMethod keyAlgorithm,
-												  DataEncryptionMethod dataAlgorithm) {
-		Encrypter encrypter = getEncrypter(key, keyAlgorithm, dataAlgorithm);
-		try {
-			Encrypter.KeyPlacement keyPlacement =
-				Encrypter.KeyPlacement.valueOf(
-					System.getProperty("spring.security.saml.encrypt.key.placement", "PEER")
-				);
-			encrypter.setKeyPlacement(keyPlacement);
-			return encrypter.encrypt(assertion);
-		} catch (EncryptionException e) {
-			throw new SamlException("Unable to encrypt assertion.", e);
-		}
-	}
-*/
-/*
-	protected SAMLObject decrypt(EncryptedElementType encrypted, List<SimpleKey> keys) {
-		DecryptionException last = null;
-		for (SimpleKey key : keys) {
-			Decrypter decrypter = getDecrypter(key);
-			try {
-				return (SAMLObject) decrypter.decryptData(encrypted.getEncryptedData());
-			} catch (DecryptionException e) {
-				logger.debug(format("Unable to decrypt element:%s", encrypted), e);
-			}
-		}
-		if (last != null) {
-			throw new SamlKeyException("Unable to decrypt object.", last);
-		}
-		return null;
-	}
-*/
-/*
-	protected Encrypter getEncrypter(SimpleKey key,
-									 KeyEncryptionMethod keyAlgorithm,
-									 DataEncryptionMethod dataAlgorithm) {
-		Credential credential = getCredential(key, getCredentialsResolver(key));
+  /**
+   * @Override
+   */
+  public cfboom.security.saml.saml2.signature.Signature function validateSignatureFromSaml2Object(cfboom.security.saml.saml2.Saml2Object saml2Object, any trustedKeys) {
+    if (isNull(arguments.saml2Object) || isNull(arguments.saml2Object.getImplementation())) {
+      throw("No object to validate signature against.", "SamlException");
+    }
 
-		SecretKey secretKey = generateKeyFromURI(dataAlgorithm);
-		BasicCredential dataCredential = new BasicCredential(secretKey);
-		DataEncryptionParameters dataEncryptionParameters = new DataEncryptionParameters();
-		dataEncryptionParameters.setEncryptionCredential(dataCredential);
-		dataEncryptionParameters.setAlgorithm(dataAlgorithm.toString());
+    if (isNull(arguments.trustedKeys) || arguments.trustedKeys.isEmpty()) {
+      throw("At least one verification key has to be provided", "SamlKeyException");
+    }
 
-		KeyEncryptionParameters keyEncryptionParameters = new KeyEncryptionParameters();
-		keyEncryptionParameters.setEncryptionCredential(credential);
-		keyEncryptionParameters.setAlgorithm(keyAlgorithm.toString());
+    if (isInstanceOf(arguments.saml2Object.getImplementation(), "org.opensaml.saml.common.SignableSAMLObject")) {
+      return validateSignature(arguments.saml2Object.getImplementation(), arguments.trustedKeys);
+    }
+    else {
+      throw("Unrecognized object type:" & arguments.saml2Object.getImplementation().getClass().getName(), "SamlException");
+    }
+  }
 
-		Encrypter encrypter = new Encrypter(dataEncryptionParameters, asList(keyEncryptionParameters));
+  public cfboom.security.saml.saml2.signature.Signature function validateSignature(any object, any keys) {
+    var result = null;
+    if (arguments.object.isSigned() && structKeyExists(arguments, "keys") && !isNull(arguments.keys) && !arguments.keys.isEmpty()) {
+      var last = null;
+      for (var key in arguments.keys) {
+        try {
+          var credential = getCredential(key, getCredentialsResolver(key));
+          SignatureValidator.validate(arguments.object.getSignature(), credential);
+          last = null;
+          result = getSignature(arguments.object)
+            .setValidated(true)
+            .setValidatingKey(key);
+          break;
+        } catch (org.opensaml.xmlsec.signature.support.SignatureException ex) {
+          last = ex;
+        }
+      }
+      if (!isNull(last)) {
+        throw("Signature validation against a " & arguments.object.getClass().getName() &
+        " object failed using " & arguments.keys.size() & (arguments.keys.size() == 1 ? " key." : " keys."), "SignatureException");
+      }
+    }
+    return result;
+  }
 
-		return encrypter;
-	}
-*/
-/*
-	public static SecretKey generateKeyFromURI(DataEncryptionMethod algoURI) {
-		try {
-			String jceAlgorithmName = JCEMapper.getJCEKeyAlgorithmFromURI(algoURI.toString());
-			int keyLength = JCEMapper.getKeyLengthFromURI(algoURI.toString());
-			return generateKey(jceAlgorithmName, keyLength, null);
-		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-			throw new SamlException(e);
-		}
-	}
-*/
-/*
-	protected Decrypter getDecrypter(SimpleKey key) {
-		Credential credential = getCredential(key, getCredentialsResolver(key));
-		KeyInfoCredentialResolver resolver = new StaticKeyInfoCredentialResolver(credential);
-		Decrypter decrypter = new Decrypter(null, resolver, encryptedKeyResolver);
-		decrypter.setRootInNewDocument(true);
-		return decrypter;
-	}
-*/
-/*
-	protected XMLObject parse(byte[] xml) {
-		try {
-			Document document = getParserPool().parse(new ByteArrayInputStream(xml));
-			Element element = document.getDocumentElement();
-			return getUnmarshallerFactory().getUnmarshaller(element).unmarshall(element);
-		} catch (UnmarshallingException | XMLParserException e) {
-			throw new SamlException(e);
-		}
-	}
-*/
-/*
-	protected List<? extends Provider> getSsoProviders(EntityDescriptor descriptor) {
-		final List<SsoProvider> providers = new LinkedList<>();
-		for (RoleDescriptor roleDescriptor : descriptor.getRoleDescriptors()) {
-			if (roleDescriptor instanceof IDPSSODescriptor || roleDescriptor instanceof SPSSODescriptor) {
-				providers.add(getSsoProvider(roleDescriptor));
-			}
-			else {
-				logger.debug("Ignoring unknown metadata descriptor:"+roleDescriptor.getClass().getName());
-			}
-		}
-		return providers;
-	}
-*/
-/*
-	protected SsoProvider getSsoProvider(RoleDescriptor descriptor) {
-		if (descriptor instanceof SPSSODescriptor) {
-			SPSSODescriptor desc = (SPSSODescriptor) descriptor;
-			ServiceProvider provider = new ServiceProvider();
-			provider.setId(desc.getID());
-			provider.setValidUntil(desc.getValidUntil());
-			if (desc.getCacheDuration() != null) {
-				provider.setCacheDuration(toDuration(desc.getCacheDuration()));
-			}
-			provider.setProtocolSupportEnumeration(desc.getSupportedProtocols());
-			provider.setNameIds(getNameIDs(desc.getNameIDFormats()));
-			provider.setArtifactResolutionService(getEndpoints(desc.getArtifactResolutionServices()));
-			provider.setSingleLogoutService(getEndpoints(desc.getSingleLogoutServices()));
-			provider.setManageNameIDService(getEndpoints(desc.getManageNameIDServices()));
-			provider.setAuthnRequestsSigned(desc.isAuthnRequestsSigned());
-			provider.setWantAssertionsSigned(desc.getWantAssertionsSigned());
-			provider.setAssertionConsumerService(getEndpoints(desc.getAssertionConsumerServices()));
-			provider.setRequestedAttributes(getRequestAttributes(desc));
-			provider.setKeys(getProviderKeys(descriptor));
-			provider.setDiscovery(getDiscovery(desc));
-			provider.setRequestInitiation(getRequestInitiation(desc));
-			//TODO
-			//provider.setAttributeConsumingService(getEndpoints(desc.getAttributeConsumingServices()));
-			return provider;
-		}
-		else if (descriptor instanceof IDPSSODescriptor) {
-			IDPSSODescriptor desc = (IDPSSODescriptor) descriptor;
-			IdentityProvider provider = new IdentityProvider();
-			provider.setId(desc.getID());
-			provider.setValidUntil(desc.getValidUntil());
-			if (desc.getCacheDuration() != null) {
-				provider.setCacheDuration(toDuration(desc.getCacheDuration()));
-			}
-			provider.setProtocolSupportEnumeration(desc.getSupportedProtocols());
-			provider.setNameIds(getNameIDs(desc.getNameIDFormats()));
-			provider.setArtifactResolutionService(getEndpoints(desc.getArtifactResolutionServices()));
-			provider.setSingleLogoutService(getEndpoints(desc.getSingleLogoutServices()));
-			provider.setManageNameIDService(getEndpoints(desc.getManageNameIDServices()));
-			provider.setWantAuthnRequestsSigned(desc.getWantAuthnRequestsSigned());
-			provider.setSingleSignOnService(getEndpoints(desc.getSingleSignOnServices()));
-			provider.setKeys(getProviderKeys(descriptor));
-			provider.setDiscovery(getDiscovery(desc));
-			provider.setRequestInitiation(getRequestInitiation(desc));
-			return provider;
-		}
-		else {
+  public org.opensaml.security.credential.Credential function getCredential(cfboom.security.saml.key.SimpleKey key, any resolver) {
+    try {
+      var cs = variables.javaLoader.create("net.shibboleth.utilities.java.support.resolver.CriteriaSet").init();
+      var criteria = variables.javaLoader.create("org.opensaml.core.criterion.EntityIdCriterion").init(arguments.key.getName());
+      cs.add(criteria);
+      return arguments.resolver.resolveSingle(cs);
+    } catch (net.shibboleth.utilities.java.support.resolver.ResolverException e) {
+      throw("Can't obtain SP private key", "SamlKeyException");
+    }
+  }
 
-		}
-		throw new UnsupportedOperationException(
-			descriptor == null ?
-				null :
-				descriptor.getClass().getName()
-		);
-	}
+  public org.opensaml.security.credential.impl.KeyStoreCredentialResolver function getCredentialsResolver(cfboom.security.saml.key.SimpleKey key) {
+    var ks = getSamlKeyStoreProvider().getKeyStore(arguments.key);
+    var passwords = hasText(arguments.key.getPrivateKey()) ?
+      Collections.singletonMap(arguments.key.getName(), arguments.key.getPassphrase()) :
+      Collections.emptyMap();
+    var resolver = variables.javaLoader.create("org.opensaml.security.credential.impl.KeyStoreCredentialResolver").init(
+      ks,
+      passwords
+    );
+    return resolver;
+  }
+
+  /**
+   * target.class org.opensaml.saml.common.SignableSAMLObject
+   */
+  public cfboom.security.saml.saml2.signature.Signature function getSignature(any target) {
+    var signature = arguments.target.getSignature();
+    var result = null;
+    if (!isNull(signature) && isInstanceOf(signature, "org.opensaml.xmlsec.signature.impl.SignatureImpl")) {
+      var impl = signature;
+      try {
+        result = new cfboom.security.saml.saml2.signature.Signature()
+          .setSignatureAlgorithm(AlgorithmMethod.fromUrn(impl.getSignatureAlgorithm()))
+          .setCanonicalizationAlgorithm(CanonicalizationMethod.fromUrn(impl
+            .getCanonicalizationAlgorithm()))
+          .setSignatureValue(variables.javaLoader.create("org.apache.xml.security.utils.Base64").encode(impl.getXMLSignature()
+            .getSignatureValue()))
+        ;
+        //TODO extract the digest value
+        for (var ref in
+          Optional.ofNullable(signature.getContentReferences()).orElse(Collections.emptyList())) {
+          if (isInstanceOf(ref, "org.opensaml.saml.common.SAMLObjectContentReference")) {
+            var sref = ref;
+            result.setDigestAlgorithm(DigestMethod.fromUrn(sref.getDigestAlgorithm()));
+          }
+        }
+
+      } catch (org.apache.xml.security.signature.XMLSignatureException e) {
+        //TODO - ignore for now
+      }
+    }
+    return result;
+  }
+
+  /**
+   * @assertion.class org.opensaml.saml.saml2.core.Assertion
+   */
+  public org.opensaml.saml.saml2.core.EncryptedAssertion function encryptAssertion(any assertion,
+                                                                                   cfboom.security.saml.key.SimpleKey key,
+                                                                                   cfboom.security.saml.saml2.encrypt.KeyEncryptionMethod keyAlgorithm,
+                                                                                   cfboom.security.saml.saml2.encrypt.DataEncryptionMethod dataAlgorithm) {
+    var encrypter = getEncrypter(arguments.key, arguments.keyAlgorithm, arguments.dataAlgorithm);
+    try {
+      var keyPlacement =
+        variables.Encrypter.KeyPlacement.valueOf(
+          System.getProperty("cfboom.security.saml.encrypt.key.placement", "PEER")
+        );
+      encrypter.setKeyPlacement(keyPlacement);
+      return encrypter.encrypt(arguments.assertion);
+    } catch (org.opensaml.xmlsec.encryption.support.EncryptionException e) {
+      throw("Unable to encrypt assertion.", "SamlException");
+    }
+  }
+
+  /**
+   * @encrypted.class org.opensaml.saml.saml2.core.EncryptedElementType
+   */
+  public org.opensaml.saml.common.SAMLObject function decrypt(any encrypted, any keys) {
+    var last = null;
+    for (var key in arguments.keys) {
+      var decrypter = getDecrypter(key);
+      try {
+        return decrypter.decryptData(arguments.encrypted.getEncryptedData());
+      } catch (org.opensaml.xmlsec.encryption.support.DecryptionException e) {
+        variables.log.debug(createObject("java","java.lang.String").format("Unable to decrypt element:%s", encrypted), e);
+      }
+    }
+    if (!isNull(last)) {
+      throw("Unable to decrypt object.", "SamlKeyException");
+    }
+    return null;
+  }
+
+  public org.opensaml.saml.saml2.encryption.Encrypter function getEncrypter(cfboom.security.saml.key.SimpleKey key,
+                                                                            cfboom.security.saml.saml2.encrypt.KeyEncryptionMethod keyAlgorithm,
+                                                                            cfboom.security.saml.saml2.encrypt.DataEncryptionMethod dataAlgorithm) {
+    var credential = getCredential(arguments.key, getCredentialsResolver(arguments.key));
+
+    var secretKey = generateKeyFromURI(arguments.dataAlgorithm);
+    var dataCredential = variables.javaLoader.create("org.opensaml.security.credential.BasicCredential").init(secretKey);
+    var dataEncryptionParameters = variables.javaLoader.create("org.opensaml.xmlsec.encryption.support.DataEncryptionParameters").init();
+    dataEncryptionParameters.setEncryptionCredential(dataCredential);
+    dataEncryptionParameters.setAlgorithm(arguments.dataAlgorithm.toString());
+
+    var keyEncryptionParameters = variables.javaLoader.create("org.opensaml.xmlsec.encryption.support.KeyEncryptionParameters").init();
+    keyEncryptionParameters.setEncryptionCredential(credential);
+    keyEncryptionParameters.setAlgorithm(arguments.keyAlgorithm.toString());
+
+    var encrypter = variables.javaLoader.create("org.opensaml.saml.saml2.encryption.Encrypter").init(dataEncryptionParameters, Arrays.asList(keyEncryptionParameters));
+
+    return encrypter;
+  }
+
+  public javax.crypto.SecretKey function generateKeyFromURI(cfboom.security.saml.saml2.encrypt.DataEncryptionMethod algoURI) {
+    try {
+      var jceAlgorithmName = JCEMapper.getJCEKeyAlgorithmFromURI(arguments.algoURI.toString());
+      var keyLength = JCEMapper.getKeyLengthFromURI(arguments.algoURI.toString());
+      return generateKey(jceAlgorithmName, keyLength, null);
+    } catch (java.security.NoSuchAlgorithmException ex) {
+      throw(ex.getMessage(), "SamlException");
+    } catch (java.security.NoSuchProviderException ex) {
+      throw(ex.getMessage(), "SamlException");
+    }
+  }
+
+  public org.opensaml.saml.saml2.encryption.Decrypter function getDecrypter(cfboom.security.saml.key.SimpleKey key) {
+    var credential = getCredential(arguments.key, getCredentialsResolver(arguments.key));
+    var resolver = variables.javaLoader.create("org.opensaml.xmlsec.keyinfo.impl.StaticKeyInfoCredentialResolver").init(credential);
+    var decrypter = variables.javaLoader.create("org.opensaml.saml.saml2.encryption.Decrypter").init(null, resolver, variables._encryptedKeyResolver);
+    decrypter.setRootInNewDocument(true);
+    return decrypter;
+  }
+
+  public any function parse(any xmlBytes) {
+    try {
+      var document = getParserPool().parse(createObject("java","java.io.ByteArrayInputStream").init(arguments.xmlBytes));
+      var element = document.getDocumentElement();
+      return getUnmarshallerFactory().getUnmarshaller(element).unmarshall(element);
+    } catch (org.opensaml.core.xml.io.UnmarshallingException ex) {
+      throw(ex.message, "SamlException");
+    } catch (net.shibboleth.utilities.java.support.xml.XMLParserException ex) {
+      throw(ex.message, "SamlException");
+    }
+  }
+
+  public any function getSsoProviders(any descriptor) {
+    var providers = createObject("java","java.util.LinkedList").init();
+    for (var roleDescriptor in arguments.descriptor.getRoleDescriptors()) {
+      if (isInstanceOf(roleDescriptor, "org.opensaml.saml.saml2.metadata.IDPSSODescriptor") || isInstanceOf(roleDescriptor, "org.opensaml.saml.saml2.metadata.SPSSODescriptor")) {
+        providers.add(getSsoProvider(roleDescriptor));
+      }
+      else {
+        variables.log.debug("Ignoring unknown metadata descriptor:"+roleDescriptor.getClass().getName());
+      }
+    }
+    return providers;
+  }
+
+  public cfboom.security.saml.saml2.metadata.SsoProvider function getSsoProvider(any descriptor) {
+    if (isInstanceOf(arguments.descriptor, "org.opensaml.saml.saml2.metadata.SPSSODescriptor")) {
+      var desc = arguments.descriptor;
+      var provider = new cfboom.security.saml.saml2.metadata.ServiceProvider();
+      provider.setId(desc.getID());
+      provider.setValidUntil(desc.getValidUntil());
+      if (!isNull(desc.getCacheDuration())) {
+        provider.setCacheDuration(toDuration(desc.getCacheDuration()));
+      }
+      provider.setProtocolSupportEnumeration(desc.getSupportedProtocols());
+      provider.setNameIds(getNameIDs(desc.getNameIDFormats()));
+      provider.setArtifactResolutionService(getEndpoints(desc.getArtifactResolutionServices()));
+      provider.setSingleLogoutService(getEndpoints(desc.getSingleLogoutServices()));
+      provider.setManageNameIDService(getEndpoints(desc.getManageNameIDServices()));
+      provider.setAuthnRequestsSigned(desc.isAuthnRequestsSigned());
+      provider.setWantAssertionsSigned(desc.getWantAssertionsSigned());
+      provider.setAssertionConsumerService(getEndpoints(desc.getAssertionConsumerServices()));
+      provider.setRequestedAttributes(getRequestAttributes(desc));
+      provider.setKeys(getProviderKeys(descriptor));
+      provider.setDiscovery(getDiscovery(desc));
+      provider.setRequestInitiation(getRequestInitiation(desc));
+      //TODO
+      //provider.setAttributeConsumingService(getEndpoints(desc.getAttributeConsumingServices()));
+      return provider;
+    }
+    else if (isInstanceOf(arguments.descriptor, "org.opensaml.saml.saml2.metadata.IDPSSODescriptor")) {
+      var desc = arguments.descriptor;
+      var provider = new cfboom.security.saml.saml2.metadata.IdentityProvider();
+      provider.setId(desc.getID());
+      provider.setValidUntil(desc.getValidUntil());
+      if (!isNull(desc.getCacheDuration())) {
+        provider.setCacheDuration(toDuration(desc.getCacheDuration()));
+      }
+      provider.setProtocolSupportEnumeration(desc.getSupportedProtocols());
+      provider.setNameIds(getNameIDs(desc.getNameIDFormats()));
+      provider.setArtifactResolutionService(getEndpoints(desc.getArtifactResolutionServices()));
+      provider.setSingleLogoutService(getEndpoints(desc.getSingleLogoutServices()));
+      provider.setManageNameIDService(getEndpoints(desc.getManageNameIDServices()));
+      provider.setWantAuthnRequestsSigned(desc.getWantAuthnRequestsSigned());
+      provider.setSingleSignOnService(getEndpoints(desc.getSingleSignOnServices()));
+      provider.setKeys(getProviderKeys(descriptor));
+      provider.setDiscovery(getDiscovery(desc));
+      provider.setRequestInitiation(getRequestInitiation(desc));
+      return provider;
+    }
+    else {
+
+    }
+    throw(object=createObject("java","java.lang.UnsupportedOperationException").init(isNull(arguments.descriptor) ? null : arguments.descriptor.getClass().getName()));
+  }
+
+  public any function getRequestAttributes(any desc) {
+    var result = createObject("java","java.util.LinkedList").init();
+    if (!isNull(arguments.desc.getDefaultAttributeConsumingService())) {
+      result.addAll(getRequestedAttributes(desc.getDefaultAttributeConsumingService().getRequestAttributes()));
+    }
+    else {
+      for (var s in Optional.ofNullable(arguments.desc.getAttributeConsumingServices()).orElse(Collections.emptyList())) {
+        if (!isNull(s)) {
+          //take the first one
+          result.addAll(getRequestedAttributes(s.getRequestAttributes()));
+          break;
+        }
+      }
+    }
+    return result;
+  }
+
+  public cfboom.security.saml.saml2.metadata.Endpoint function getRequestInitiation(any desc) {
+    if (isNull(arguments.desc.getExtensions())) {
+      return null;
+    }
+    var result = null;
+    for (var obj in arguments.desc.getExtensions().getUnknownXMLObjects()) {
+      if (isInstanceOf(obj, "org.opensaml.saml.ext.saml2mdreqinit.RequestInitiator")) {
+        var req = obj;
+        result = new cfboom.security.saml.saml2.metadata.Endpoint()
+          .setIndex(0)
+          .setDefault(false)
+          .setBinding(Binding.fromUrn(req.getBinding()))
+          .setLocation(req.getLocation())
+          .setResponseLocation(req.getResponseLocation());
+      }
+    }
+    return result;
+  }
+
+  public cfboom.security.saml.saml2.metadata.Endpoint function getDiscovery(any desc) {
+    if (isNull(arguments.desc.getExtensions())) {
+      return null;
+    }
+    var result = null;
+    for (var obj in arguments.desc.getExtensions().getUnknownXMLObjects()) {
+      if (isInstanceOf(obj, "org.opensaml.saml.ext.idpdisco.DiscoveryResponse")) {
+        var resp = obj;
+        result = new cfboom.security.saml.saml2.metadata.Endpoint()
+          .setDefault(resp.isDefault())
+          .setIndex(resp.getIndex())
+          .setBinding(Binding.fromUrn(resp.getBinding()))
+          .setLocation(resp.getLocation())
+          .setResponseLocation(resp.getResponseLocation());
+      }
+    }
+    return result;
+  }
+
+  public any function getProviderKeys(any descriptor) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var desc in Optional.ofNullable(arguments.descriptor.getKeyDescriptors()).orElse(Collections.emptyList())) {
+      if (!isNull(desc)) {
+        result.addAll(!isNull(getKeyFromDescriptor(desc)) ? getKeyFromDescriptor(desc) : Collections.emptyList());
+      }
+    }
+    return result;
+  }
+
+  public any function getKeyFromDescriptor(any desc) {
+    var result = createObject("java","java.util.LinkedList").init();
+    if (isNull(arguments.desc.getKeyInfo())) {
+      return null;
+    }
+    var type = !isNull(arguments.desc.getUse()) ? KeyType.valueOf(arguments.desc.getUse().name()) : KeyType.UNSPECIFIED;
+    var index = javaCast("int",0);
+    for (var x509 in Optional.ofNullable(arguments.desc.getKeyInfo().getX509Datas()).orElse(Collections.emptyList())) {
+      for (var cert in Optional.ofNullable(x509.getX509Certificates()).orElse(Collections.emptyList())) {
+        result.add(new cfboom.security.saml.key.SimpleKey(type.getTypeName() & "-" & (index++), null, cert.getValue(), null, type));
+      }
+    }
+    return result;
+  }
+
+  public any function getEndpoints(any services) {
+    var result = createObject("java","java.util.LinkedList").init();
+    if (!isNull(arguments.services)) {
+      arguments.services.each(function( s ) {
+        var endpoint = new cfboom.security.saml.saml2.metadata.Endpoint()
+          .setBinding(Binding.fromUrn(s.getBinding()))
+          .setLocation(s.getLocation())
+          .setResponseLocation(s.getResponseLocation());
+        result.add(endpoint);
+        if (isInstanceOf(s, "org.opensaml.saml.saml2.metadata.IndexedEndpoint")) {
+          var idxEndpoint = s;
+          endpoint
+            .setIndex(idxEndpoint.getIndex())
+            .setDefault(idxEndpoint.isDefault());
+        }
+      });
+    }
+    return result;
+  }
+
+  public any function getNameIDs(any nameIDFormats) {
+    var result = createObject("java","java.util.LinkedList").init();
+    if (!isNull(arguments.nameIDFormats)) {
+      arguments.nameIDFormats.each( function(n) {
+        result.add(NameId.fromUrn(n.getFormat()));
+      });
+    }
+    return result;
+  }
+/*
+  protected org.opensaml.saml.saml2.core.Response internalToXml(Response response) {
+    org.opensaml.saml.saml2.core.Response result = buildSAMLObject(org.opensaml.saml.saml2.core.Response.class);
+    result.setConsent(response.getConsent());
+    result.setID(Optional.ofNullable(response.getId()).orElse("a" + UUID.randomUUID().toString()));
+    result.setInResponseTo(response.getInResponseTo());
+    result.setVersion(SAMLVersion.VERSION_20);
+    result.setIssueInstant(response.getIssueInstant());
+    result.setDestination(response.getDestination());
+    result.setIssuer(toIssuer(response.getIssuer()));
+
+    if (response.getStatus() == null || response.getStatus().getCode() == null) {
+      throw new SamlException("Status cannot be null on a response");
+    }
+    org.opensaml.saml.saml2.core.Status status = buildSAMLObject(org.opensaml.saml.saml2.core.Status.class);
+    org.opensaml.saml.saml2.core.StatusCode code = buildSAMLObject(org.opensaml.saml.saml2.core.StatusCode.class);
+    code.setValue(response.getStatus().getCode().toString());
+    status.setStatusCode(code);
+
+    if (hasText(response.getStatus().getMessage())) {
+      StatusMessage message = buildSAMLObject(StatusMessage.class);
+      message.setMessage(response.getStatus().getMessage());
+      status.setStatusMessage(message);
+    }
+
+    result.setStatus(status);
+
+    for (Assertion a : Optional.ofNullable(response.getAssertions()).orElse(Collections.emptyList())) {
+      org.opensaml.saml.saml2.core.Assertion osAssertion = internalToXml(a);
+      if (a.getEncryptionKey() != null) {
+        EncryptedAssertion encryptedAssertion =
+          encryptAssertion(osAssertion, a.getEncryptionKey(), a.getKeyAlgorithm(), a.getDataAlgorithm());
+        result.getEncryptedAssertions().add(encryptedAssertion);
+      }
+      else {
+        result.getAssertions().add(osAssertion);
+      }
+    }
+    if (response.getSigningKey() != null) {
+      signObject(result, response.getSigningKey(), response.getAlgorithm(), response.getDigest());
+    }
+    return result;
+  }
 */
 /*
-	protected List<Attribute> getRequestAttributes(SPSSODescriptor desc) {
-		List<Attribute> result = new LinkedList<>();
-		if (desc.getDefaultAttributeConsumingService() != null) {
-			result.addAll(getRequestedAttributes(desc.getDefaultAttributeConsumingService()
-				.getRequestAttributes()));
-		}
-		else {
-			for (AttributeConsumingService s :
-				ofNullable(desc.getAttributeConsumingServices()).orElse(emptyList())) {
-				if (s != null) {
-					//take the first one
-					result.addAll(getRequestedAttributes(s.getRequestAttributes()));
-					break;
-				}
-			}
-		}
-		return result;
-	}
+  protected EntityDescriptor internalToXml(Metadata<? extends Metadata> metadata) {
+    EntityDescriptor desc = getEntityDescriptor();
+    desc.setEntityID(metadata.getEntityId());
+    if (hasText(metadata.getId())) {
+      desc.setID(metadata.getId());
+    }
+    else {
+      desc.setID(UUID.randomUUID().toString());
+    }
+    List<RoleDescriptor> descriptors = getRoleDescriptors(metadata);
+    desc.getRoleDescriptors().addAll(descriptors);
+    if (metadata.getSigningKey() != null) {
+      signObject(desc, metadata.getSigningKey(), metadata.getAlgorithm(), metadata.getDigest());
+    }
+    return desc;
+  }
 */
-/*
-	protected Endpoint getRequestInitiation(RoleDescriptor desc) {
-		if (desc.getExtensions() == null) {
-			return null;
-		}
-		Endpoint result = null;
-		for (XMLObject obj : desc.getExtensions().getUnknownXMLObjects()) {
-			if (obj instanceof RequestInitiator) {
-				RequestInitiator req = (RequestInitiator) obj;
-				result = new Endpoint()
-					.setIndex(0)
-					.setDefault(false)
-					.setBinding(Binding.fromUrn(req.getBinding()))
-					.setLocation(req.getLocation())
-					.setResponseLocation(req.getResponseLocation());
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected Endpoint getDiscovery(RoleDescriptor desc) {
-		if (desc.getExtensions() == null) {
-			return null;
-		}
-		Endpoint result = null;
-		for (XMLObject obj : desc.getExtensions().getUnknownXMLObjects()) {
-			if (obj instanceof DiscoveryResponse) {
-				DiscoveryResponse resp = (DiscoveryResponse) obj;
-				result = new Endpoint()
-					.setDefault(resp.isDefault())
-					.setIndex(resp.getIndex())
-					.setBinding(Binding.fromUrn(resp.getBinding()))
-					.setLocation(resp.getLocation())
-					.setResponseLocation(resp.getResponseLocation());
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected List<SimpleKey> getProviderKeys(RoleDescriptor descriptor) {
-		List<SimpleKey> result = new LinkedList<>();
-		for (KeyDescriptor desc : ofNullable(descriptor.getKeyDescriptors()).orElse(emptyList())) {
-			if (desc != null) {
-				result.addAll(getKeyFromDescriptor(desc));
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected List<SimpleKey> getKeyFromDescriptor(KeyDescriptor desc) {
-		List<SimpleKey> result = new LinkedList<>();
-		if (desc.getKeyInfo() == null) {
-			return null;
-		}
-		KeyType type = desc.getUse() != null ? KeyType.valueOf(desc.getUse().name()) : KeyType.UNSPECIFIED;
-		int index = 0;
-		for (X509Data x509 : ofNullable(desc.getKeyInfo().getX509Datas()).orElse(emptyList())) {
-			for (X509Certificate cert : ofNullable(x509.getX509Certificates()).orElse(emptyList())) {
-				result.add(new SimpleKey(type.getTypeName() + "-" + (index++), null, cert.getValue(), null,
-					type
-				));
-			}
-		}
+  public any function getRoleDescriptors(cfboom.security.saml.saml2.metadata.Metadata metadata) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var p in arguments.metadata.getSsoProviders()) {
+      var roleDescriptor = null;
+      if (isInstanceOf(p, "cfboom.security.saml.saml2.metadata.ServiceProvider")) {
+        var sp = p;
+        var descriptor = getSPSSODescriptor();
+        roleDescriptor = descriptor;
+        descriptor.setAuthnRequestsSigned(sp.isAuthnRequestsSigned());
+        descriptor.setWantAssertionsSigned(sp.isWantAssertionsSigned());
 
-		return result;
-	}
-*/
-/*
-	protected List<Endpoint> getEndpoints(
-		List<? extends org.opensaml.saml.saml2.metadata.Endpoint>
-			services
-	) {
-		List<Endpoint> result = new LinkedList<>();
-		if (services != null) {
-			services
-				.stream()
-				.forEach(s -> {
-						Endpoint endpoint = new Endpoint()
-							.setBinding(Binding.fromUrn(s.getBinding()))
-							.setLocation(s.getLocation())
-							.setResponseLocation(s.getResponseLocation());
-						result.add(endpoint);
-						if (s instanceof IndexedEndpoint) {
-							IndexedEndpoint idxEndpoint = (IndexedEndpoint) s;
-							endpoint
-								.setIndex(idxEndpoint.getIndex())
-								.setDefault(idxEndpoint.isDefault());
-						}
-					}
-				);
-		}
-		return result;
-	}
-*/
-/*
-	protected List<NameId> getNameIDs(List<NameIDFormat> nameIDFormats) {
-		List<NameId> result = new LinkedList<>();
-		if (nameIDFormats != null) {
-			nameIDFormats.stream()
-				.forEach(n -> result.add(NameId.fromUrn(n.getFormat())));
-		}
-		return result;
-	}
-*/
-/*
-	protected org.opensaml.saml.saml2.core.Response internalToXml(Response response) {
-		org.opensaml.saml.saml2.core.Response result = buildSAMLObject(org.opensaml.saml.saml2.core.Response.class);
-		result.setConsent(response.getConsent());
-		result.setID(ofNullable(response.getId()).orElse("a" + UUID.randomUUID().toString()));
-		result.setInResponseTo(response.getInResponseTo());
-		result.setVersion(SAMLVersion.VERSION_20);
-		result.setIssueInstant(response.getIssueInstant());
-		result.setDestination(response.getDestination());
-		result.setIssuer(toIssuer(response.getIssuer()));
+        for (var id in p.getNameIds()) {
+          descriptor.getNameIDFormats().add(getNameIDFormat(id));
+        }
 
-		if (response.getStatus() == null || response.getStatus().getCode() == null) {
-			throw new SamlException("Status cannot be null on a response");
-		}
-		org.opensaml.saml.saml2.core.Status status = buildSAMLObject(org.opensaml.saml.saml2.core.Status.class);
-		org.opensaml.saml.saml2.core.StatusCode code = buildSAMLObject(org.opensaml.saml.saml2.core.StatusCode.class);
-		code.setValue(response.getStatus().getCode().toString());
-		status.setStatusCode(code);
+        for (var i = 0; i < sp.getAssertionConsumerService().size(); i++) {
+          var ep = sp.getAssertionConsumerService().get(i);
+          descriptor.getAssertionConsumerServices().add(getAssertionConsumerService(ep, i));
+        }
+        for (var i = 0; i < sp.getArtifactResolutionService().size(); i++) {
+          var ep = sp.getArtifactResolutionService().get(i);
+          descriptor.getArtifactResolutionServices().add(getArtifactResolutionService(ep, i));
+        }
+        for (var i = 0; i < sp.getSingleLogoutService().size(); i++) {
+          var ep = sp.getSingleLogoutService().get(i);
+          descriptor.getSingleLogoutServices().add(getSingleLogoutService(ep));
+        }
+        if (!isNull(sp.getRequestedAttributes()) && !sp.getRequestedAttributes().isEmpty()) {
+          descriptor
+            .getAttributeConsumingServices()
+            .add(getAttributeConsumingService(sp.getRequestedAttributes()));
+        }
 
-		if (hasText(response.getStatus().getMessage())) {
-			StatusMessage message = buildSAMLObject(StatusMessage.class);
-			message.setMessage(response.getStatus().getMessage());
-			status.setStatusMessage(message);
-		}
+      }
+      else if (isInstanceOf(p, "cfboom.security.saml.saml2.metadata.IdentityProvider")) {
+        var idp = p;
+        var descriptor = getIDPSSODescriptor();
+        roleDescriptor = descriptor;
+        descriptor.setWantAuthnRequestsSigned(idp.getWantAuthnRequestsSigned());
+        for (var id in p.getNameIds()) {
+          descriptor.getNameIDFormats().add(getNameIDFormat(id));
+        }
+        for (var i = 0; i < idp.getSingleSignOnService().size(); i++) {
+          var ep = idp.getSingleSignOnService().get(i);
+          descriptor.getSingleSignOnServices().add(getSingleSignOnService(ep, i));
+        }
+        for (var i = 0; i < p.getSingleLogoutService().size(); i++) {
+          var ep = p.getSingleLogoutService().get(i);
+          descriptor.getSingleLogoutServices().add(getSingleLogoutService(ep));
+        }
+        for (var i = 0; i < p.getArtifactResolutionService().size(); i++) {
+          var ep = p.getArtifactResolutionService().get(i);
+          descriptor.getArtifactResolutionServices().add(getArtifactResolutionService(ep, i));
+        }
+      }
+      var now = getTime().millis();
+      if (!isNull(p.getCacheDuration())) {
+        roleDescriptor.setCacheDuration(p.getCacheDuration().getTimeInMillis(createObject("java","java.util.Date").init(now)));
+      }
+      roleDescriptor.setValidUntil(p.getValidUntil());
+      roleDescriptor.addSupportedProtocol(Namespace.NS_PROTOCOL);
+      roleDescriptor.setID(Optional.ofNullable(p.getId()).orElse(UUID.randomUUID().toString()));
 
-		result.setStatus(status);
+      for (var key in p.getKeys()) {
+        roleDescriptor.getKeyDescriptors().add(getKeyDescriptor(key));
+      }
 
-		for (Assertion a : ofNullable(response.getAssertions()).orElse(emptyList())) {
-			org.opensaml.saml.saml2.core.Assertion osAssertion = internalToXml(a);
-			if (a.getEncryptionKey() != null) {
-				EncryptedAssertion encryptedAssertion =
-					encryptAssertion(osAssertion, a.getEncryptionKey(), a.getKeyAlgorithm(), a.getDataAlgorithm());
-				result.getEncryptedAssertions().add(encryptedAssertion);
-			}
-			else {
-				result.getAssertions().add(osAssertion);
-			}
-		}
-		if (response.getSigningKey() != null) {
-			signObject(result, response.getSigningKey(), response.getAlgorithm(), response.getDigest());
-		}
-		return result;
-	}
-*/
-/*
-	protected EntityDescriptor internalToXml(Metadata<? extends Metadata> metadata) {
-		EntityDescriptor desc = getEntityDescriptor();
-		desc.setEntityID(metadata.getEntityId());
-		if (hasText(metadata.getId())) {
-			desc.setID(metadata.getId());
-		}
-		else {
-			desc.setID(UUID.randomUUID().toString());
-		}
-		List<RoleDescriptor> descriptors = getRoleDescriptors(metadata);
-		desc.getRoleDescriptors().addAll(descriptors);
-		if (metadata.getSigningKey() != null) {
-			signObject(desc, metadata.getSigningKey(), metadata.getAlgorithm(), metadata.getDigest());
-		}
-		return desc;
-	}
-*/
-/*
-	protected List<RoleDescriptor> getRoleDescriptors(Metadata<? extends Metadata> metadata) {
-		List<RoleDescriptor> result = new LinkedList<>();
-		for (SsoProvider<? extends SsoProvider> p : metadata.getSsoProviders()) {
-			RoleDescriptor roleDescriptor = null;
-			if (p instanceof ServiceProvider) {
-				ServiceProvider sp = (ServiceProvider) p;
-				SPSSODescriptor descriptor = getSPSSODescriptor();
-				roleDescriptor = descriptor;
-				descriptor.setAuthnRequestsSigned(sp.isAuthnRequestsSigned());
-				descriptor.setWantAssertionsSigned(sp.isWantAssertionsSigned());
+      //md:extensions
+      var requestInitiation = p.getRequestInitiation();
+      var discovery = p.getDiscovery();
+      if (!isNull(requestInitiation) || !isNull(discovery)) {
+        var extensionsBuilder = getBuilderFactory().getBuilder(Extensions.DEFAULT_ELEMENT_NAME);
+        roleDescriptor.setExtensions(extensionsBuilder.buildObject());
 
-				for (NameId id : p.getNameIds()) {
-					descriptor.getNameIDFormats().add(getNameIDFormat(id));
-				}
+        if (!isNull(requestInitiation)) {
+          var builder = getBuilderFactory().getBuilder(RequestInitiator.DEFAULT_ELEMENT_NAME);
+          var init = builder.buildObject();
+          init.setBinding(requestInitiation.getBinding().toString());
+          init.setLocation(requestInitiation.getLocation());
+          init.setResponseLocation(requestInitiation.getResponseLocation());
+          roleDescriptor.getExtensions().getUnknownXMLObjects().add(init);
+        }
+        if (!isNull(discovery)) {
+          var builder = getBuilderFactory().getBuilder(DiscoveryResponse.DEFAULT_ELEMENT_NAME);
+          var response = builder.buildObject(DiscoveryResponse.DEFAULT_ELEMENT_NAME);
+          response.setBinding(discovery.getBinding().toString());
+          response.setLocation(discovery.getLocation());
+          response.setResponseLocation(discovery.getResponseLocation());
+          response.setIsDefault(discovery.isDefault());
+          response.setIndex(discovery.getIndex());
+          roleDescriptor.getExtensions().getUnknownXMLObjects().add(response);
+        }
+      }
+      result.add(roleDescriptor);
+    }
+    return result;
+  }
 
-				for (int i = 0; i < sp.getAssertionConsumerService().size(); i++) {
-					Endpoint ep = sp.getAssertionConsumerService().get(i);
-					descriptor.getAssertionConsumerServices().add(getAssertionConsumerService(ep, i));
-				}
-				for (int i = 0; i < sp.getArtifactResolutionService().size(); i++) {
-					Endpoint ep = sp.getArtifactResolutionService().get(i);
-					descriptor.getArtifactResolutionServices().add(getArtifactResolutionService(ep, i));
-				}
-				for (int i = 0; i < sp.getSingleLogoutService().size(); i++) {
-					Endpoint ep = sp.getSingleLogoutService().get(i);
-					descriptor.getSingleLogoutServices().add(getSingleLogoutService(ep));
-				}
-				if (sp.getRequestedAttributes() != null && !sp.getRequestedAttributes().isEmpty()) {
-					descriptor
-						.getAttributeConsumingServices()
-						.add(getAttributeConsumingService(sp.getRequestedAttributes()));
-				}
+  public org.opensaml.saml.saml2.metadata.AttributeConsumingService function getAttributeConsumingService(any attributes) {
 
-			}
-			else if (p instanceof IdentityProvider) {
-				IdentityProvider idp = (IdentityProvider) p;
-				IDPSSODescriptor descriptor = getIDPSSODescriptor();
-				roleDescriptor = descriptor;
-				descriptor.setWantAuthnRequestsSigned(idp.getWantAuthnRequestsSigned());
-				for (NameId id : p.getNameIds()) {
-					descriptor.getNameIDFormats().add(getNameIDFormat(id));
-				}
-				for (int i = 0; i < idp.getSingleSignOnService().size(); i++) {
-					Endpoint ep = idp.getSingleSignOnService().get(i);
-					descriptor.getSingleSignOnServices().add(getSingleSignOnService(ep, i));
-				}
-				for (int i = 0; i < p.getSingleLogoutService().size(); i++) {
-					Endpoint ep = p.getSingleLogoutService().get(i);
-					descriptor.getSingleLogoutServices().add(getSingleLogoutService(ep));
-				}
-				for (int i = 0; i < p.getArtifactResolutionService().size(); i++) {
-					Endpoint ep = p.getArtifactResolutionService().get(i);
-					descriptor.getArtifactResolutionServices().add(getArtifactResolutionService(ep, i));
-				}
-			}
-			long now = getTime().millis();
-			if (p.getCacheDuration() != null) {
-				roleDescriptor.setCacheDuration(p.getCacheDuration().getTimeInMillis(new Date(now)));
-			}
-			roleDescriptor.setValidUntil(p.getValidUntil());
-			roleDescriptor.addSupportedProtocol(NS_PROTOCOL);
-			roleDescriptor.setID(ofNullable(p.getId()).orElse(UUID.randomUUID().toString()));
+    var service = buildSAMLObject(variables.javaLoader.loadClass("org.opensaml.saml.saml2.metadata.AttributeConsumingService"));
+    service.setIsDefault(true);
+    service.setIndex(0);
+    var attrs = createObject("java","java.util.LinkedList").init();
+    for (var a in arguments.attributes) {
+      var ra = buildSAMLObject(variables.javaLoader.loadClass("org.opensaml.saml.saml2.metadata.RequestedAttribute"));
+      ra.setIsRequired(a.isRequired());
+      ra.setFriendlyName(a.getFriendlyName());
+      ra.setName(a.getName());
+      ra.setNameFormat(a.getNameFormat().toString());
+      attrs.add(ra);
+    }
+    service.getRequestAttributes().addAll(attrs);
+    return service;
+  }
 
-			for (SimpleKey key : p.getKeys()) {
-				roleDescriptor.getKeyDescriptors().add(getKeyDescriptor(key));
-			}
-
-			//md:extensions
-			Endpoint requestInitiation = p.getRequestInitiation();
-			Endpoint discovery = p.getDiscovery();
-			if (requestInitiation != null || discovery != null) {
-				ExtensionsBuilder extensionsBuilder = (ExtensionsBuilder) getBuilderFactory().getBuilder
-					(Extensions.DEFAULT_ELEMENT_NAME);
-				roleDescriptor.setExtensions(extensionsBuilder.buildObject());
-
-				if (requestInitiation != null) {
-					RequestInitiatorBuilder builder = (RequestInitiatorBuilder) getBuilderFactory().getBuilder
-						(RequestInitiator.DEFAULT_ELEMENT_NAME);
-					RequestInitiator init = builder.buildObject();
-					init.setBinding(requestInitiation.getBinding().toString());
-					init.setLocation(requestInitiation.getLocation());
-					init.setResponseLocation(requestInitiation.getResponseLocation());
-					roleDescriptor.getExtensions().getUnknownXMLObjects().add(init);
-				}
-				if (discovery != null) {
-					DiscoveryResponseBuilder builder = (DiscoveryResponseBuilder) getBuilderFactory().getBuilder
-						(DiscoveryResponse.DEFAULT_ELEMENT_NAME);
-					DiscoveryResponse response = builder.buildObject(DiscoveryResponse.DEFAULT_ELEMENT_NAME);
-					response.setBinding(discovery.getBinding().toString());
-					response.setLocation(discovery.getLocation());
-					response.setResponseLocation(discovery.getResponseLocation());
-					response.setIsDefault(discovery.isDefault());
-					response.setIndex(discovery.getIndex());
-					roleDescriptor.getExtensions().getUnknownXMLObjects().add(response);
-				}
-			}
-			result.add(roleDescriptor);
-		}
-		return result;
-	}
-*/
-/*
-	protected AttributeConsumingService getAttributeConsumingService(List<Attribute> attributes) {
-
-		AttributeConsumingService service = buildSAMLObject(AttributeConsumingService.class);
-		service.setIsDefault(true);
-		service.setIndex(0);
-		List<RequestedAttribute> attrs = new LinkedList<>();
-		for (Attribute a : attributes) {
-			RequestedAttribute ra = buildSAMLObject(RequestedAttribute.class);
-			ra.setIsRequired(a.isRequired());
-			ra.setFriendlyName(a.getFriendlyName());
-			ra.setName(a.getName());
-			ra.setNameFormat(a.getNameFormat().toString());
-			attrs.add(ra);
-		}
-		service.getRequestAttributes().addAll(attrs);
-		return service;
-	}
-*/
-/*
-	protected ArtifactResolutionService getArtifactResolutionService(Endpoint ep, int i) {
-		ArtifactResolutionService service = buildSAMLObject(ArtifactResolutionService.class);
-		service.setLocation(ep.getLocation());
-		service.setBinding(ep.getBinding().toString());
-		service.setIndex(i);
-		service.setIsDefault(ep.isDefault());
-		service.setResponseLocation(ep.getResponseLocation());
-		return service;
-	}
-*/
+  public org.opensaml.saml.saml2.metadata.ArtifactResolutionService function getArtifactResolutionService(cfboom.security.saml.saml2.metadata.Endpoint ep, numeric i) {
+    var service = buildSAMLObject(variables.javaLoader.loadClass("org.opensaml.saml.saml2.metadata.ArtifactResolutionService"));
+    service.setLocation(ep.getLocation());
+    service.setBinding(ep.getBinding().toString());
+    service.setIndex(javaCast("int",i));
+    service.setIsDefault(ep.isDefault());
+    service.setResponseLocation(ep.getResponseLocation());
+    return service;
+  }
 /*
 	protected org.opensaml.saml.saml2.core.LogoutResponse internalToXml(LogoutResponse response) {
 		org.opensaml.saml.saml2.core.LogoutResponse result =
@@ -1100,44 +1085,30 @@ component
 		return result;
 	}
 */
-/*
-	protected Response resolveResponse(
-		org.opensaml.saml.saml2.core.Response parsed,
-		List<SimpleKey> verificationKeys,
-		List<SimpleKey> localKeys
-	) {
-		Response result = new Response()
-			.setConsent(parsed.getConsent())
-			.setDestination(parsed.getDestination())
-			.setId(parsed.getID())
-			.setInResponseTo(parsed.getInResponseTo())
-			.setIssueInstant(parsed.getIssueInstant())
-			.setIssuer(getIssuer(parsed.getIssuer()))
-			.setVersion(parsed.getVersion().toString())
-			.setStatus(getStatus(parsed.getStatus()))
-			.setAssertions(
-				parsed.getAssertions().stream().map(a -> resolveAssertion(a, verificationKeys, localKeys))
-					.collect(Collectors.toList())
-			);
-		if (parsed.getEncryptedAssertions() != null && !parsed.getEncryptedAssertions().isEmpty()) {
-			parsed
-				.getEncryptedAssertions()
-				.stream()
-				.forEach(
-					a -> result.addAssertion(
-						resolveAssertion(
-							(org.opensaml.saml.saml2.core.Assertion) decrypt(a, localKeys),
-							verificationKeys,
-							localKeys
-						)
-					)
-				);
-		}
-
-		return result;
-
-	}
-*/
+  public cfboom.security.saml.saml2.authentication.Response function resolveResponse(any parsed, any verificationKeys, any localKeys) {
+    var result = new cfboom.security.saml.saml2.authentication.Response()
+      .setConsent(arguments.parsed.getConsent())
+      .setDestination(arguments.parsed.getDestination())
+      .setId(arguments.parsed.getID())
+      .setInResponseTo(arguments.parsed.getInResponseTo())
+      .setIssueInstant(arguments.parsed.getIssueInstant())
+      .setIssuer(getIssuer(arguments.parsed.getIssuer()))
+      .setVersion(arguments.parsed.getVersion().toString())
+      .setStatus(getStatus(arguments.parsed.getStatus()));
+    var assertions = createObject("java","java.util.LinkedList").init();
+    for (var a in arguments.parsed.getAssertions()) {
+      assertions.add(resolveAssertion(a, arguments.verificationKeys, arguments.localKeys));
+    }
+    result.setAssertions(assertions);
+    if (!isNull(arguments.parsed.getEncryptedAssertions()) && !arguments.parsed.getEncryptedAssertions().isEmpty()) {
+      for (var a in arguments.parsed.getEncryptedAssertions()) {
+        result.addAssertion(
+          resolveAssertion(decrypt(a, arguments.localKeys), arguments.verificationKeys, arguments.localKeys)
+        );
+      }
+    }
+    return result;
+  }
 /*
 	protected LogoutResponse resolveLogoutResponse(org.opensaml.saml.saml2.core.LogoutResponse response,
 												   List<SimpleKey> verificationKeys,
@@ -1173,254 +1144,221 @@ component
 		return result;
 	}
 */
-/*
-	protected Status getStatus(org.opensaml.saml.saml2.core.Status status) {
-		return new Status()
-			.setCode(StatusCode.fromUrn(status.getStatusCode().getValue()))
-			.setMessage(status.getStatusMessage() != null ? status.getStatusMessage().getMessage() : null);
-	}
-*/
-/*
-	protected Assertion resolveAssertion(
-		org.opensaml.saml.saml2.core.Assertion parsed,
-		List<SimpleKey> verificationKeys,
-		List<SimpleKey> localKeys
-	) {
-		Signature signature = validateSignature(parsed, verificationKeys);
-		return new Assertion()
-			.setSignature(signature)
-			.setId(parsed.getID())
-			.setIssueInstant(parsed.getIssueInstant())
-			.setVersion(parsed.getVersion().toString())
-			.setIssuer(getIssuer(parsed.getIssuer()))
-			.setSubject(getSubject(parsed.getSubject(), localKeys))
-			.setConditions(getConditions(parsed.getConditions()))
-			.setAuthenticationStatements(getAuthenticationStatements(parsed.getAuthnStatements()))
-			.setAttributes(getAttributes(parsed.getAttributeStatements(), localKeys))
-			;
-	}
-*/
-/*
-	protected List<Attribute> getRequestedAttributes(List<RequestedAttribute> attributes) {
-		List<Attribute> result = new LinkedList<>();
-		for (RequestedAttribute a : ofNullable(attributes).orElse(emptyList())) {
-			result.add(
-				new Attribute()
-					.setFriendlyName(a.getFriendlyName())
-					.setName(a.getName())
-					.setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
-					.setValues(getJavaValues(a.getAttributeValues()))
-					.setRequired(a.isRequired())
-			);
-		}
-		return result;
-	}
-*/
-/*
-	protected List<Attribute> getAttributes(
-		List<AttributeStatement> attributeStatements, List<SimpleKey>
-		localKeys
-	) {
-		List<Attribute> result = new LinkedList<>();
-		for (AttributeStatement stmt : ofNullable(attributeStatements).orElse(emptyList())) {
-			for (org.opensaml.saml.saml2.core.Attribute a : ofNullable(stmt.getAttributes()).orElse(emptyList())) {
-				result.add(
-					new Attribute()
-						.setFriendlyName(a.getFriendlyName())
-						.setName(a.getName())
-						.setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
-						.setValues(getJavaValues(a.getAttributeValues()))
-				);
-			}
-			for (EncryptedAttribute encryptedAttribute : ofNullable(stmt.getEncryptedAttributes()).orElse(emptyList())) {
-				org.opensaml.saml.saml2.core.Attribute a = (org.opensaml.saml.saml2.core.Attribute) decrypt
-					(encryptedAttribute, localKeys);
-				result.add(
-					new Attribute()
-						.setFriendlyName(a.getFriendlyName())
-						.setName(a.getName())
-						.setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
-						.setValues(getJavaValues(a.getAttributeValues()))
-				);
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected List<Object> getJavaValues(List<XMLObject> attributeValues) {
-		List<Object> result = new LinkedList<>();
-		for (XMLObject o : ofNullable(attributeValues).orElse(emptyList())) {
-			if (o == null) {
+  public cfboom.security.saml.saml2.authentication.Status function getStatus(any status) {
+    return new cfboom.security.saml.saml2.authentication.Status()
+      .setCode(StatusCode.fromUrn(arguments.status.getStatusCode().getValue()))
+      .setMessage(!isNull(arguments.status.getStatusMessage()) ? arguments.status.getStatusMessage().getMessage() : null);
+  }
 
-			}
-			else if (o instanceof XSString) {
-				result.add(((XSString) o).getValue());
-			}
-			else if (o instanceof XSURI) {
-				try {
-					result.add(new URI(((XSURI) o).getValue()));
-				} catch (URISyntaxException e) {
-					result.add(((XSURI) o).getValue());
-				}
-			}
-			else if (o instanceof XSBoolean) {
-				result.add(((XSBoolean) o).getValue().getValue());
-			}
-			else if (o instanceof XSDateTime) {
-				result.add(((XSDateTime) o).getValue());
-			}
-			else if (o instanceof XSInteger) {
-				result.add(((XSInteger) o).getValue());
-			}
-			else if (o instanceof XSAny) {
-				result.add(((XSAny) o).getTextContent());
-			}
-			else {
-				//we don't know the type.
-				result.add(o);
-			}
-		}
+  public cfboom.security.saml.saml2.authentication.Assertion function resolveAssertion(any parsed, any verificationKeys, any localKeys) {
+    var signature = validateSignature(arguments.parsed, arguments.verificationKeys);
+    return new cfboom.security.saml.saml2.authentication.Assertion()
+      .setSignature(signature)
+      .setId(arguments.parsed.getID())
+      .setIssueInstant(arguments.parsed.getIssueInstant())
+      .setVersion(arguments.parsed.getVersion().toString())
+      .setIssuer(getIssuer(arguments.parsed.getIssuer()))
+      .setSubject(getSubject(arguments.parsed.getSubject(), arguments.localKeys))
+      .setConditions(getConditions(arguments.parsed.getConditions()))
+      .setAuthenticationStatements(getAuthenticationStatements(arguments.parsed.getAuthnStatements()))
+      .setAttributes(getAttributes(arguments.parsed.getAttributeStatements(), arguments.localKeys))
+      ;
+  }
 
-		return result;
-	}
-*/
-/*
-	protected List<AuthenticationStatement> getAuthenticationStatements(
-		List<AuthnStatement>
-			authnStatements
-	) {
-		List<AuthenticationStatement> result = new LinkedList<>();
+  public any function getRequestedAttributes(any attributes) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var a in Optional.ofNullable(arguments.attributes).orElse(Collections.emptyList())) {
+      result.add(
+        new cfboom.security.saml.saml2.attribute.Attribute()
+          .setFriendlyName(a.getFriendlyName())
+          .setName(a.getName())
+          .setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
+          .setValues(getJavaValues(a.getAttributeValues()))
+          .setRequired(a.isRequired())
+      );
+    }
+    return result;
+  }
 
-		for (AuthnStatement s : ofNullable(authnStatements).orElse(emptyList())) {
-			AuthnContext authnContext = s.getAuthnContext();
-			AuthnContextClassRef authnContextClassRef = authnContext.getAuthnContextClassRef();
-			String ref = null;
-			if (authnContextClassRef.getAuthnContextClassRef() != null) {
-				ref = authnContextClassRef.getAuthnContextClassRef();
-			}
+  public any function getAttributes(any attributeStatements, any localKeys) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var stmt in Optional.ofNullable(attributeStatements).orElse(Collections.emptyList())) {
+      for (var a in Optional.ofNullable(stmt.getAttributes()).orElse(Collections.emptyList())) {
+        result.add(
+          new cfboom.security.saml.saml2.attribute.Attribute()
+            .setFriendlyName(a.getFriendlyName())
+            .setName(a.getName())
+            .setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
+            .setValues(getJavaValues(a.getAttributeValues()))
+        );
+      }
+      for (var encryptedAttribute in Optional.ofNullable(stmt.getEncryptedAttributes()).orElse(Collections.emptyList())) {
+        var a = decrypt(encryptedAttribute, arguments.localKeys);
+        result.add(
+          new cfboom.security.saml.saml2.attribute.Attribute()
+            .setFriendlyName(a.getFriendlyName())
+            .setName(a.getName())
+            .setNameFormat(AttributeNameFormat.fromUrn(a.getNameFormat()))
+            .setValues(getJavaValues(a.getAttributeValues()))
+        );
+      }
+    }
+    return result;
+  }
 
-			result.add(
-				new AuthenticationStatement()
-					.setSessionIndex(s.getSessionIndex())
-					.setAuthInstant(s.getAuthnInstant())
-					.setSessionNotOnOrAfter(s.getSessionNotOnOrAfter())
-					.setAuthenticationContext(
-						authnContext != null ?
-							new AuthenticationContext()
-								.setClassReference(AuthenticationContextClassReference.fromUrn(ref))
-							: null
-					)
-			);
+  public any function getJavaValues(any attributeValues) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var o in Optional.ofNullable(arguments.attributeValues).orElse(Collections.emptyList())) {
+      if (isNull(o)) {
+        // Do nothing
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSString")) {
+        result.add(o.getValue());
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSURI")) {
+        try {
+          result.add(createObject("java","java.net.URI").init(o.getValue()));
+        } catch (java.net.URISyntaxException e) {
+          result.add(o.getValue());
+        }
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSBoolean")) {
+        result.add(javaCast("boolean", o.getValue().getValue()));
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSDateTime")) {
+        result.add(o.getValue());
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSInteger")) {
+        result.add(o.getValue());
+      }
+      else if (isInstanceOf(o, "org.opensaml.core.xml.schema.XSAny")) {
+        result.add(o.getTextContent());
+      }
+      else {
+        //we don't know the type.
+        result.add(o);
+      }
+    }
+    return result;
+  }
 
-		}
-		return result;
-	}
-*/
-/*
-	protected Conditions getConditions(org.opensaml.saml.saml2.core.Conditions conditions) {
-		return new Conditions()
-			.setNotBefore(conditions.getNotBefore())
-			.setNotOnOrAfter(conditions.getNotOnOrAfter())
-			.setCriteria(getCriteria(conditions.getConditions()));
-	}
-*/
-/*
-	protected List<AssertionCondition> getCriteria(List<org.opensaml.saml.saml2.core.Condition> conditions) {
-		List<AssertionCondition> result = new LinkedList<>();
-		for (Condition c : conditions) {
-			if (c instanceof org.opensaml.saml.saml2.core.AudienceRestriction) {
-				org.opensaml.saml.saml2.core.AudienceRestriction aud =
-					(org.opensaml.saml.saml2.core.AudienceRestriction) c;
-				if (aud.getAudiences() != null) {
-					result.add(
-						new AudienceRestriction()
-							.setAudiences(
-								aud.getAudiences().stream().map(
-									a -> a.getAudienceURI()
-								).collect(Collectors.toList())
-							)
-					);
-				}
-			}
-			else if (c instanceof org.opensaml.saml.saml2.core.OneTimeUse) {
-				result.add(new OneTimeUse());
-			}
-		}
-		return result;
-	}
-*/
-/*
-	protected Subject getSubject(org.opensaml.saml.saml2.core.Subject subject, List<SimpleKey> localKeys) {
+  public any function getAuthenticationStatements(any authnStatements) {
+    var result = createObject("java","java.util.LinkedList").init();
 
-		return new Subject()
-			.setPrincipal(getPrincipal(subject, localKeys))
-			.setConfirmations(getConfirmations(subject.getSubjectConfirmations(), localKeys))
-			;
-	}
-*/
-/*
-	protected List<SubjectConfirmation> getConfirmations(
-		List<org.opensaml.saml.saml2.core
-			.SubjectConfirmation> subjectConfirmations, List<SimpleKey> localKeys
-	) {
-		List<SubjectConfirmation> result = new LinkedList<>();
-		for (org.opensaml.saml.saml2.core.SubjectConfirmation s : subjectConfirmations) {
-			NameID nameID = getNameID(s.getNameID(), s.getEncryptedID(), localKeys);
-			result.add(
-				new SubjectConfirmation()
-					.setNameId(nameID != null ? nameID.getValue() : null)
-					.setFormat(nameID != null ? NameId.fromUrn(nameID.getFormat()) : null)
-					.setMethod(SubjectConfirmationMethod.fromUrn(s.getMethod()))
-					.setConfirmationData(
-						new SubjectConfirmationData()
-							.setRecipient(s.getSubjectConfirmationData().getRecipient())
-							.setNotOnOrAfter(s.getSubjectConfirmationData().getNotOnOrAfter())
-							.setNotBefore(s.getSubjectConfirmationData().getNotBefore())
-							.setInResponseTo(s.getSubjectConfirmationData().getInResponseTo())
-					)
-			);
-		}
-		return result;
-	}
-*/
-/*
-	protected NameID getNameID(NameID id,
-							   EncryptedID eid,
-							   List<SimpleKey> localKeys) {
-		NameID result = id;
-		if (result == null && eid != null && eid.getEncryptedData() != null) {
-			result = (NameID) decrypt(eid, localKeys);
-		}
-		return result;
-	}
-*/
-/*
-	protected NameIdPrincipal getPrincipal(org.opensaml.saml.saml2.core.Subject subject, List<SimpleKey> localKeys) {
-		NameID p =
-			getNameID(
-				subject.getNameID(),
-				subject.getEncryptedID(),
-				localKeys
-			);
-		if (p != null) {
-			return getNameIdPrincipal(p);
-		}
-		else {
-			throw new UnsupportedOperationException("Currently only supporting NameID subject principals");
-		}
-	}
-*/
-/*
-	protected NameIdPrincipal getNameIdPrincipal(NameID p) {
-		return new NameIdPrincipal()
-			.setSpNameQualifier(p.getSPNameQualifier())
-			.setNameQualifier(p.getNameQualifier())
-			.setFormat(NameId.fromUrn(p.getFormat()))
-			.setSpProvidedId(p.getSPProvidedID())
-			.setValue(p.getValue());
-	}
-*/
+    for (var s in Optional.ofNullable(arguments.authnStatements).orElse(Collections.emptyList())) {
+      var authnContext = s.getAuthnContext();
+      var authnContextClassRef = authnContext.getAuthnContextClassRef();
+      var ref = null;
+      if (!isNull(authnContextClassRef.getAuthnContextClassRef())) {
+        ref = authnContextClassRef.getAuthnContextClassRef();
+      }
+
+      result.add(
+        new cfboom.security.saml.saml2.authentication.AuthenticationStatement()
+          .setSessionIndex(s.getSessionIndex())
+          .setAuthInstant(s.getAuthnInstant())
+          .setSessionNotOnOrAfter(s.getSessionNotOnOrAfter())
+          .setAuthenticationContext(
+            !isNull(authnContext) ?
+              new cfboom.security.saml.saml2.authentication.AuthenticationContext()
+                .setClassReference(AuthenticationContextClassReference.fromUrn(ref))
+              : null
+          )
+      );
+
+    }
+    return result;
+  }
+
+  public cfboom.security.saml.saml2.authentication.Conditions function getConditions(any conditions) {
+    return new cfboom.security.saml.saml2.authentication.Conditions()
+      .setNotBefore(arguments.conditions.getNotBefore())
+      .setNotOnOrAfter(arguments.conditions.getNotOnOrAfter())
+      .setCriteria(getCriteria(arguments.conditions.getConditions()));
+  }
+
+  public any function getCriteria(any conditions) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var c in arguments.conditions) {
+      if (isInstanceOf(c, "org.opensaml.saml.saml2.core.AudienceRestriction")) {
+          var aud = c;
+          if (!isNull(aud.getAudiences())) {
+            var audiences = createObject("java","java.util.LinkedList").init();
+            for (var audience in aud.getAudiences()) {
+              audiences.add(audience.getAudienceURI());
+            }
+            result.add(
+              new cfboom.security.saml.saml2.authentication.AudienceRestriction()
+                .setAudiences(audiences)
+            );
+          }
+      }
+      else if (isInstanceOf(c, "org.opensaml.saml.saml2.core.OneTimeUse")) {
+        result.add(new cfboom.security.saml.saml2.authentication.OneTimeUse());
+      }
+    }
+    return result;
+  }
+
+  public cfboom.security.saml.saml2.authentication.Subject function getSubject(any subject, any localKeys) {
+    return new cfboom.security.saml.saml2.authentication.Subject()
+      .setPrincipal(getPrincipal(arguments.subject, arguments.localKeys))
+      .setConfirmations(getConfirmations(arguments.subject.getSubjectConfirmations(), arguments.localKeys))
+      ;
+  }
+
+  public any function getConfirmations(any subjectConfirmations, any localKeys) {
+    var result = createObject("java","java.util.LinkedList").init();
+    for (var s in arguments.subjectConfirmations) {
+      var nameID = getNameID(s.getNameID(), s.getEncryptedID(), arguments.localKeys);
+      result.add(
+        new cfboom.security.saml.saml2.authentication.SubjectConfirmation()
+          .setNameId(!isNull(nameID) ? nameID.getValue() : null)
+          .setFormat(!isNull(nameID) ? NameId.fromUrn(nameID.getFormat()) : null)
+          .setMethod(SubjectConfirmationMethod.fromUrn(s.getMethod()))
+          .setConfirmationData(
+            new cfboom.security.saml.saml2.authentication.SubjectConfirmationData()
+              .setRecipient(s.getSubjectConfirmationData().getRecipient())
+              .setNotOnOrAfter(s.getSubjectConfirmationData().getNotOnOrAfter())
+              .setNotBefore(s.getSubjectConfirmationData().getNotBefore())
+              .setInResponseTo(s.getSubjectConfirmationData().getInResponseTo())
+          )
+      );
+    }
+    return result;
+  }
+
+  public any function getNameID(any id, any eid, any localKeys) {
+    var result = arguments.id;
+    if (isNull(result) && !isNull(arguments.eid) && !isNull(arguments.eid.getEncryptedData())) {
+      result = decrypt(arguments.eid, arguments.localKeys);
+    }
+    return result;
+  }
+
+  public cfboom.security.saml.saml2.authentication.NameIdPrincipal function getPrincipal(any subject, any localKeys) {
+    var p =
+      getNameID(
+        arguments.subject.getNameID(),
+        arguments.subject.getEncryptedID(),
+        arguments.localKeys
+      );
+    if (!isNull(p)) {
+      return getNameIdPrincipal(p);
+    }
+    else {
+      throw(object=createObject("java","java.lang.UnsupportedOperationException").init("Currently only supporting NameID subject principals"));
+    }
+  }
+
+  public cfboom.security.saml.saml2.authentication.NameIdPrincipal function getNameIdPrincipal(any p) {
+    return new cfboom.security.saml.saml2.authentication.NameIdPrincipal()
+      .setSpNameQualifier(arguments.p.getSPNameQualifier())
+      .setNameQualifier(arguments.p.getNameQualifier())
+      .setFormat(NameId.fromUrn(arguments.p.getFormat()))
+      .setSpProvidedId(arguments.p.getSPProvidedID())
+      .setValue(arguments.p.getValue());
+  }
 /*
 	protected org.opensaml.saml.saml2.core.Issuer toIssuer(Issuer issuer) {
 		org.opensaml.saml.saml2.core.Issuer result =
@@ -1434,16 +1372,14 @@ component
 		return result;
 	}
 */
-/*
-	protected Issuer getIssuer(org.opensaml.saml.saml2.core.Issuer issuer) {
-		return issuer == null ? null :
-			new Issuer()
-				.setValue(issuer.getValue())
-				.setFormat(NameId.fromUrn(issuer.getFormat()))
-				.setSpNameQualifier(issuer.getSPNameQualifier())
-				.setNameQualifier(issuer.getNameQualifier());
-	}
-*/
+  public cfboom.security.saml.saml2.authentication.Issuer function getIssuer(any issuer) {
+    return (!structKeyExists(arguments, "issuer") || isNull(arguments.issuer)) ? null :
+      new cfboom.security.saml.saml2.authentication.Issuer()
+        .setValue(arguments.issuer.getValue())
+        .setFormat(NameId.fromUrn(arguments.issuer.getFormat()))
+        .setSpNameQualifier(arguments.issuer.getSPNameQualifier())
+        .setNameQualifier(arguments.issuer.getNameQualifier());
+  }
 /*
 	protected AuthenticationRequest resolveAuthenticationRequest(AuthnRequest parsed) {
 		AuthnRequest request = parsed;
@@ -1453,7 +1389,7 @@ component
 				getEndpoint(
 					request.getAssertionConsumerServiceURL(),
 					Binding.fromUrn(request.getProtocolBinding()),
-					ofNullable(request.getAssertionConsumerServiceIndex()).orElse(-1),
+					Optional.ofNullable(request.getAssertionConsumerServiceIndex()).orElse(-1),
 					false
 				)
 			)
@@ -1503,17 +1439,18 @@ component
 	}
 */
 /*
-	protected Metadata resolveMetadata(EntitiesDescriptor parsed,
-									   List<SimpleKey> verificationKeys,
-									   List<SimpleKey> localKeys) {
+    // @parsed.javaType org.opensaml.saml.saml2.metadata.EntitiesDescriptor
+	public cfboom.security.saml.saml2.metadata.Metadata function resolveMetadataFromEntitiesDescriptor(any parsed,
+									   any verificationKeys,
+									   any localKeys) {
 		Metadata result = null, current = null;
 		for (EntityDescriptor desc : parsed.getEntityDescriptors()) {
 			if (result == null) {
-				result = resolveMetadata(desc);
+				result = resolveMetadataFromEntityDescriptor(desc);
 				current = result;
 			}
 			else {
-				Metadata m = resolveMetadata(desc);
+				Metadata m = resolveMetadataFromEntityDescriptor(desc);
 				current.setNext(m);
 				current = m;
 			}
@@ -1523,42 +1460,47 @@ component
 		return result;
 	}
 */
-/*
-	protected Metadata resolveMetadata(EntityDescriptor parsed) {
-		EntityDescriptor descriptor = parsed;
-		List<? extends Provider> ssoProviders = getSsoProviders(descriptor);
-		Metadata desc = getMetadata(ssoProviders);
-		long duration = descriptor.getCacheDuration() != null ? descriptor.getCacheDuration() : -1;
-		desc.setCacheDuration(toDuration(duration));
-		desc.setEntityId(descriptor.getEntityID());
-		desc.setEntityAlias(descriptor.getEntityID());
-		desc.setId(descriptor.getID());
-		desc.setValidUntil(descriptor.getValidUntil());
-		return desc;
-	}
-*/
-/*
-	protected Metadata getMetadata(List<? extends Provider> ssoProviders) {
-		Metadata result = determineMetadataType(ssoProviders);
-		result.setProviders(ssoProviders);
-		return result;
-	}
-*/
-/*
-	private Metadata determineMetadataType(List<? extends Provider> ssoProviders) {
-		Metadata result = new Metadata();
-		long sps = ssoProviders.stream().filter(p -> p instanceof ServiceProvider).count();
-		long idps = ssoProviders.stream().filter(p -> p instanceof IdentityProvider).count();
+  // @parsed.javaType org.opensaml.saml.saml2.metadata.EntityDescriptor
+  public cfboom.security.saml.saml2.metadata.Metadata function resolveMetadataFromEntityDescriptor(any parsed) {
+    var descriptor = arguments.parsed;
+    var ssoProviders = getSsoProviders(descriptor);
+    var desc = getProviderMetadata(ssoProviders); // TODO: Re-name from reserved ColdFusion word
+    var duration = !isNull(descriptor.getCacheDuration()) ? descriptor.getCacheDuration() : javaCast("long",-1);
+    desc.setCacheDuration(toDuration(duration));
+    desc.setEntityId(descriptor.getEntityID());
+    desc.setEntityAlias(descriptor.getEntityID());
+    desc.setId(descriptor.getID());
+    desc.setValidUntil(descriptor.getValidUntil());
+    return desc;
+  }
 
-		if (ssoProviders.size() == sps) {
-			result = new ServiceProviderMetadata();
-		} else if (ssoProviders.size() == idps) {
-			result = new IdentityProviderMetadata();
-		}
-		result.setProviders(ssoProviders);
-		return result;
-	}
-*/
+  public cfboom.security.saml.saml2.metadata.Metadata function getProviderMetadata(any ssoProviders) {
+    var result = determineMetadataType(arguments.ssoProviders);
+    result.setProviders(arguments.ssoProviders);
+    return result;
+  }
+
+  private cfboom.security.saml.saml2.metadata.Metadata function determineMetadataType(any ssoProviders) {
+    var result = new cfboom.security.saml.saml2.metadata.Metadata();
+    var sps = javaCast("long", 0);
+    arguments.ssoProviders.each( function( provider ) {
+      if (isInstanceOf(provider, "cfboom.security.saml.saml2.metadata.ServiceProvider"))
+        sps = javaCast("long", sps + 1);
+    });
+    var idps = javaCast("long", 0);
+    arguments.ssoProviders.each( function( provider ) {
+      if (isInstanceOf(provider, "cfboom.security.saml.saml2.metadata.IdentityProvider"))
+        idps = javaCast("long", idps + 1);
+    });
+
+    if (arguments.ssoProviders.size() == sps) {
+        result = new cfboom.security.saml.saml2.metadata.ServiceProviderMetadata();
+    } else if (arguments.ssoProviders.size() == idps) {
+        result = new cfboom.security.saml.saml2.metadata.IdentityProviderMetadata();
+    }
+    result.setProviders(arguments.ssoProviders);
+    return result;
+  }
 /*
 	protected XMLObject objectToXmlObject(Object o) {
 		if (o == null) {
@@ -1776,4 +1718,10 @@ component
 		return object;
 	}
 */
+  private boolean function hasText( string str ) {
+    if (!structKeyExists(arguments, "str"))
+      return false;
+    var strData = trim(arguments.str);
+    return !strData.isEmpty();
+  }
 }

@@ -36,6 +36,8 @@ component
   variables['_defaultDigest'] = createObject("java","javax.xml.crypto.dsig.DigestMethod").SHA256;
   variables['_providers'] = createObject("java","java.util.LinkedList").init();
   //private String basePath;
+  //private String _assertionConsumerServicePath;
+  //private String _singleLogoutServicePath
 
   public cfboom.security.saml.provider.config.LocalProviderConfiguration function init(string prefix) {
     if (structKeyExists(arguments, "prefix"))
@@ -160,6 +162,26 @@ component
 
   public cfboom.security.saml.provider.config.LocalProviderConfiguration function setBasePath(string basePath) {
     variables['_basePath'] = arguments.basePath;
+    return this;
+  }
+
+  public string function getAssertionConsumerServicePath() {
+    if (structKeyExists(variables, "_assertionConsumerServicePath"))
+      return variables._assertionConsumerServicePath;
+  }
+
+  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setAssertionConsumerServicePath(string assertionConsumerServicePath) {
+    variables['_assertionConsumerServicePath'] = arguments.assertionConsumerServicePath;
+    return this;
+  }
+
+  public string function getSingleLogoutServicePath() {
+    if (structKeyExists(variables, "_singleLogoutServicePath"))
+      return variables._singleLogoutServicePath;
+  }
+
+  public cfboom.security.saml.provider.config.LocalProviderConfiguration function setSingleLogoutServicePath(string singleLogoutServicePath) {
+    variables['_singleLogoutServicePath'] = arguments.singleLogoutServicePath;
     return this;
   }
 

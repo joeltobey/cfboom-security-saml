@@ -32,19 +32,19 @@ interface
 
   public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProviderFromSaml2Object(cfboom.security.saml.saml2.Saml2Object saml2Object);
 
-  public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProvider(string entityId);
+  public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProvider(any obj);
 
   public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProviderFromExternalProviderConfiguration(cfboom.security.saml.provider.config.ExternalProviderConfiguration c);
 
-  public cfboom.security.saml.validation.ValidationResult validate(cfboom.security.saml.saml2.Saml2Object saml2Object);
+  public cfboom.security.saml.validation.ValidationResult function validate(cfboom.security.saml.saml2.Saml2Object saml2Object);
 
-  public cfboom.security.saml.saml2.Saml2Object function fromXml(string xml, boolean encoded, boolean deflated);
+  public cfboom.security.saml.saml2.Saml2Object function fromXml(string xmlString, boolean encoded, boolean deflated, string type);
 
   public string function toXml(cfboom.security.saml.saml2.Saml2Object saml2Object);
 
   public string function toEncodedXmlFromSaml2Object(cfboom.security.saml.saml2.Saml2Object saml2Object, boolean deflate);
 
-  public string function toEncodedXml(string xml, boolean deflate);
+  public string function toEncodedXml(string xmlString, boolean deflate);
 
   public any function getPreferredEndpoint(any endpoints, cfboom.security.saml.saml2.metadata.Binding preferredBinding, numeric preferredIndex);
 }

@@ -22,6 +22,8 @@ component
   displayname="Class IdentityProviderMetadata"
   output="false"
 {
+  property name="_defaultNameId" type="cfboom.security.saml.saml2.metadata.NameId";
+
   public cfboom.security.saml.saml2.metadata.IdentityProviderMetadata function init(cfboom.security.saml.saml2.metadata.EntityDescriptor other) {
     super.init( argumentCollection = arguments );
     if (structKeyExists(arguments, "other") && isInstanceOf(arguments.other, "cfboom.security.saml.saml2.metadata.IdentityProviderMetadata"))

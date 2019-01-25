@@ -24,8 +24,10 @@ component
   output="false"
 {
   property name="log" inject="logbox:logger:{this}";
-  property name="wirebox" injext="wirebox";
+  property name="wirebox" inject="wirebox";
   variables['UUID'] = createObject("java","java.util.UUID");
+  variables['Collections'] = createObject("java","java.util.Collections");
+  variables['StandardCharsets'] = createObject("java","java.nio.charset.StandardCharsets");
 
   //private final cfboom.security.saml.provider.config.LocalProviderConfiguration configuration;
   //private final cfboom.security.saml.saml2.metadata.Metadata metadata;
@@ -174,21 +176,38 @@ component
   /**
    * @Override
    */
-  public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProvider(string entityId) {
-    for (var m in getRemoteProviders()) {
-      while (!isNull(m)) {
-        if (arguments.entityId.equals(m.getEntityId())) {
-          return m;
+  public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProvider(any obj) {
+    if (isValid("string", arguments.obj)) {
+      for (var m in getRemoteProviders()) {
+        while (!isNull(m)) {
+          if (arguments.obj.equals(m.getEntityId())) {
+            return m;
+          }
+          m = m.hasNext() ? m.getNext() : null;
         }
-        m = m.hasNext() ? m.getNext() : null;
       }
-    }
-    return
+      return
       throwIfNull(
         null,
         "remote provider entityId",
-        arguments.entityId
+        arguments.obj
       );
+    }
+    else if (isInstanceOf(arguments.obj, "cfboom.security.saml.saml2.Saml2Object")) {
+      return getRemoteProviderFromSaml2Object(arguments.obj);
+    }
+    else if (isInstanceOf(arguments.obj, "cfboom.security.saml.provider.config.ExternalProviderConfiguration")) {
+      return getRemoteProviderFromExternalProviderConfiguration(arguments.obj);
+    }
+    else if (isInstanceOf(arguments.obj, "cfboom.security.saml.saml2.authentication.Issuer")) {
+      return getRemoteProviderFromIssuer(arguments.obj);
+    }
+    else if (isInstanceOf(arguments.obj, "cfboom.security.saml.saml2.authentication.LogoutResponse")) {
+      return getRemoteProviderFromLogoutResponse(arguments.obj);
+    }
+    else if (isInstanceOf(arguments.obj, "cfboom.security.saml.saml2.authentication.LogoutRequest")) {
+      return getRemoteProviderFromLogoutRequest(arguments.obj);
+    }
   }
 
   /**
@@ -200,76 +219,80 @@ component
     if (c.isMetadataTrustCheck()) {
       result = metadataTrustCheck(c, result);
     }
-    if (result != null) {
+    if (!isNull(result)) {
       addStaticKeys(c, result);
     }
     return result;
   }
 
   private void function addStaticKeys(cfboom.security.saml.provider.config.ExternalProviderConfiguration config, cfboom.security.saml.saml2.metadata.Metadata metadata) {
-    if (!config.getVerificationKeys().isEmpty() && metadata != null) {
-      for (SsoProvider provider : metadata.getSsoProviders()) {
-        List<SimpleKey> keys = new LinkedList(provider.getKeys());
-        keys.addAll(config.getVerificationKeyData());
+    if (!arguments.config.getVerificationKeys().isEmpty() && structKeyExists(arguments, "metadata")) {
+      for (var provider in arguments.metadata.getSsoProviders()) {
+        var keys = createObject("java","java.util.LinkedList").init( provider.getKeys() );
+        keys.addAll(arguments.config.getVerificationKeyData());
         provider.setKeys(keys);
       }
     }
   }
 
-  private cfboom.security.saml.saml2.metadata.Metadata function metadataTrustCheck(cfboom.security.saml.provider.config.ExternalProviderConfiguration c, cfboom.security.saml.saml2.metadata.Metadata result) {
-    if (!c.isMetadataTrustCheck()) {
-      return result;
+  /**
+   * @return cfboom.security.saml.saml2.metadata.Metadata
+   */
+  private any function metadataTrustCheck(cfboom.security.saml.provider.config.ExternalProviderConfiguration c, cfboom.security.saml.saml2.metadata.Metadata result) {
+    if (!arguments.c.isMetadataTrustCheck()) {
+      return arguments.result;
     }
-    if (c.getVerificationKeys().isEmpty()) {
-      log.warn("No keys to verify metadata for "+c.getMetadata() + " with. Unable to trust.");
-      return null;
+    if (arguments.c.getVerificationKeys().isEmpty()) {
+      log.warn("No keys to verify metadata for " & arguments.c.getMetadata() & " with. Unable to trust.");
+      return;
     }
     try {
-      Signature signature = validator.validateSignature(result, c.getVerificationKeyData());
-      if (signature != null &&
+      var signature = variables._validator.validateSignature(arguments.result, arguments.c.getVerificationKeyData());
+      if (!isNull(signature) &&
         signature.isValidated() &&
-        signature.getValidatingKey() != null) {
-        return result;
+        !isNull(signature.getValidatingKey())) {
+        return arguments.result;
       }
       else {
-        log.warn("Missing signature for "+c.getMetadata() + ". Unable to trust.");
+        variables.log.warn("Missing signature for " & arguments.c.getMetadata() & ". Unable to trust.");
       }
-    } catch (SignatureException e) {
-      log.warn("Invalid signature for remote provider metadata "+c.getMetadata() + ". Unable to trust.", e);
+    } catch (SignatureException ex) {
+      variables.log.warn("Invalid signature for remote provider metadata " & arguments.c.getMetadata() & ". Unable to trust.", ex);
     }
-    return null;
+    return;
   }
 
   /**
    * @Override
    */
-  public cfboom.security.saml.validation.ValidationResult validate(cfboom.security.saml.saml2.Saml2Object saml2Object) {
-    var remote = getRemoteProvider(saml2Object);
-    List<SimpleKey> verificationKeys = getVerificationKeys(remote);
+  public cfboom.security.saml.validation.ValidationResult function validate(cfboom.security.saml.saml2.Saml2Object saml2Object) {
+    var remoteProvider = getRemoteProviderFromSaml2Object(arguments.saml2Object);
+    var verificationKeys = getVerificationKeys(remoteProvider);
     try {
-      if (verificationKeys != null && !verificationKeys.isEmpty()) {
-        getValidator().validateSignature(saml2Object, verificationKeys);
+      if (!isNull(verificationKeys) && !verificationKeys.isEmpty()) {
+        getValidator().validateSignature(arguments.saml2Object, verificationKeys);
       }
-    } catch (SignatureException x) {
-      return new ValidationResult(saml2Object).addError(
-        new ValidationResult.ValidationError(x.getMessage())
+    } catch (SignatureException ex) {
+      return new cfboom.security.saml.validation.ValidationResult(arguments.saml2Object).addError(
+        new cfboom.security.saml.validation.ValidationError(ex.getMessage())
       );
     }
     try {
-      getValidator().validate(saml2Object, this);
-    } catch (ValidationException e) {
-      return e.getErrors();
+      getValidator().validate(arguments.saml2Object, this);
+    } catch (ValidationException ex) {
+      writeDump(ex);abort;
+      return ex.getErrors();
     }
-    return new cfboom.security.saml.validation.ValidationResult(saml2Object);
+    return new cfboom.security.saml.validation.ValidationResult(arguments.saml2Object);
   }
 
-  private any function getVerificationKeys(cfboom.security.saml.saml2.metadata.Metadata remote) {
-    List<SimpleKey> verificationKeys = emptyList();
-    if (remote instanceof ServiceProviderMetadata) {
-      verificationKeys = ((ServiceProviderMetadata) remote).getServiceProvider().getKeys();
+  private any function getVerificationKeys(cfboom.security.saml.saml2.metadata.Metadata remoteProvider) {
+    var verificationKeys = Collections.emptyList();
+    if (isInstanceOf(arguments.remoteProvider, "cfboom.security.saml.saml2.metadata.ServiceProviderMetadata")) {
+      verificationKeys = arguments.remoteProvider.getServiceProvider().getKeys();
     }
-    else if (remote instanceof IdentityProviderMetadata) {
-      verificationKeys = ((IdentityProviderMetadata) remote).getIdentityProvider().getKeys();
+    else if (isInstanceOf(arguments.remoteProvider, "cfboom.security.saml.saml2.metadata.IdentityProviderMetadata")) {
+      verificationKeys = arguments.remoteProvider.getIdentityProvider().getKeys();
     }
     return verificationKeys;
   }
@@ -281,17 +304,19 @@ component
   /**
    * @Override
    */
-  public cfboom.security.saml.saml2.Saml2Object function fromXml(string xml, boolean encoded, boolean deflated) {
+  public cfboom.security.saml.saml2.Saml2Object function fromXml(string xmlString, boolean encoded, boolean deflated, string type) {
     var decryptionKeys = getConfiguration().getKeys().toList();
     if (arguments.encoded) {
-      arguments.xml = getTransformer().samlDecode(arguments.xml, arguments.deflated);
+      arguments.xmlString = getTransformer().samlDecode(arguments.xmlString, arguments.deflated);
     }
-    var result = getTransformer().fromXml(arguments.xml, null, decryptionKeys);
+    var result = getTransformer().fromXml(arguments.xmlString, null, decryptionKeys); // Saml2Object (arguments.type)
+
     //in order to add signatures, we need the verification keys from the remote provider
-    var remote = getRemoteProvider(result);
+    var remote = getRemoteProviderFromSaml2Object(result); // Metadata
+
     var verificationKeys = remote.getSsoProviders().get(0).getKeys();
     //perform transformation with verification keys
-    return getTransformer().fromXml(arguments.xml, verificationKeys, decryptionKeys);
+    return getTransformer().fromXml(arguments.xmlString, verificationKeys, decryptionKeys);
   }
 
   /**
@@ -305,15 +330,15 @@ component
    * @Override
    */
   public string function toEncodedXmlFromSaml2Object(cfboom.security.saml.saml2.Saml2Object saml2Object, boolean deflate) {
-    var xmlString = toXml(saml2Object);
+    var xmlString = toXml(arguments.saml2Object);
     return toEncodedXml(xmlString, arguments.deflate);
   }
 
   /**
    * @Override
    */
-  public string function toEncodedXml(string xml, boolean deflate) {
-    return getTransformer().samlEncode(arguments.xml, arguments.deflate);
+  public string function toEncodedXml(string xmlString, boolean deflate) {
+    return getTransformer().samlEncode(arguments.xmlString, arguments.deflate);
   }
 
   /**
@@ -365,31 +390,32 @@ component
   }
 
   private cfboom.security.saml.saml2.metadata.Metadata function resolve(string metadata, boolean skipSslValidation) {
-    var result;
-    if (isUri(metadata)) {
+    var result = null;
+    if (isUri(arguments.metadata)) {
       try {
-        byte[] data = cache.getMetadata(metadata, skipSslValidation);
-        result = transformMetadata(new String(data, StandardCharsets.UTF_8));
-      } catch (SamlException x) {
-        throw x;
-      } catch (Exception x) {
-        String message = format("Unable to fetch metadata from: %s with message: %s", metadata, x.getMessage());
-        if (log.isDebugEnabled()) {
-          log.debug(message, x);
+        var data = variables._cache.getMetadata(arguments.metadata, arguments.skipSslValidation);
+        result = transformMetadata(createObject("java","java.lang.String").init(data, StandardCharsets.UTF_8));
+      } catch (SamlException ex) {
+        rethrow;
+      } catch (any ex) {
+writeDump(ex);abort;
+        var message = "Unable to fetch metadata from: #arguments.metadata# with message: #ex.message#";
+        if (variables.log.canDebug()) {
+          variables.log.debug(message, ex);
         }
         else {
-          log.info(message);
+          variables.log.info(message);
         }
-        throw new SamlMetadataException("Unable to successfully get metadata from:" + metadata, x);
+        throw("Unable to successfully get metadata from:" & arguments.metadata, "SamlMetadataException");
       }
     }
     else {
-      result = transformMetadata(metadata);
+      result = transformMetadata(arguments.metadata);
     }
     return throwIfNull(
       result,
       "metadata",
-      metadata
+      arguments.metadata
     );
   }
 
@@ -397,7 +423,7 @@ component
     throw(object=createObject("java", "java.lang.AbstractMethodError").init("Subcass must implement 'transformMetadata(saml2Object)'"));
   }
 
-  private boolean isUri(string uri) {
+  private boolean function isUri(string uri) {
     var isUri = false;
     try {
       createObject("java","java.net.URI").init(arguments.uri);
@@ -408,16 +434,10 @@ component
   }
 
   public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProviderFromLogoutResponse(cfboom.security.saml.saml2.authentication.LogoutResponse res) {
-    String issuer = response.getIssuer() != null ?
-      response.getIssuer().getValue() :
-      null;
-    return getRemoteProvider(issuer);
+    return getRemoteProvider(!isNull(arguments.res.getIssuer()) ? arguments.res.getIssuer().getValue() : null);
   }
 
   public cfboom.security.saml.saml2.metadata.Metadata function getRemoteProviderFromLogoutRequest(cfboom.security.saml.saml2.authentication.LogoutRequest req) {
-    String issuer = request.getIssuer() != null ?
-      request.getIssuer().getValue() :
-      null;
-    return getRemoteProvider(issuer);
+    return getRemoteProvider(!isNull(arguments.req.getIssuer()) ? arguments.req.getIssuer().getValue() : null);
   }
 }

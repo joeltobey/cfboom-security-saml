@@ -37,7 +37,6 @@ component
     return this;
   }
 
-
   public cfboom.security.saml.saml2.authentication.SubjectConfirmationMethod function getMethod() {
     return variables._method;
   }
@@ -60,7 +59,10 @@ component
     return variables._format;
   }
 
-  public cfboom.security.saml.saml2.authentication.SubjectConfirmation function setFormat(cfboom.security.saml.saml2.metadata.NameId format) {
+  /**
+   * @format.class cfboom.security.saml.saml2.metadata.NameId
+   */
+  public cfboom.security.saml.saml2.authentication.SubjectConfirmation function setFormat(any format) {
     variables['_format'] = arguments.format;
     return this;
   }

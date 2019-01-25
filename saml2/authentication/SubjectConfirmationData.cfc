@@ -41,7 +41,7 @@ component
     return variables._notOnOrAfter;
   }
 
-  public cfboom.security.saml.saml2.authentication.SubjectConfirmationData function setNotOnOrAfter(DateTime notOnOrAfter) {
+  public cfboom.security.saml.saml2.authentication.SubjectConfirmationData function setNotOnOrAfter(any notOnOrAfter) {
     variables['_notOnOrAfter'] = arguments.notOnOrAfter;
     return this;
   }

@@ -54,8 +54,7 @@ component
    * @Override
    */
   public cfboom.security.saml.saml2.Saml2Object function fromXml(string xmlString, any verificationKeys, any localKeys) {
-    var xmlBytes = arguments.xmlString.getBytes(UTF_8);
-    return variables._implementation.resolve(xmlBytes, arguments.verificationKeys, arguments.localKeys);
+    return variables._implementation.resolve(arguments.xmlString, arguments.verificationKeys, arguments.localKeys);
   }
 
   /**
