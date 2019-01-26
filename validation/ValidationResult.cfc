@@ -36,11 +36,6 @@ component
     return variables._saml2Object;
   }
 
-  public cfboom.security.saml.validation.ValidationResult function addError(string error) {
-    variables._errors.add(new cfboom.security.saml.validation.ValidationError(error));
-    return this;
-  }
-
   /**
    * @Override
    */
@@ -62,8 +57,12 @@ component
     return sb.toString();
   }
 
-  public cfboom.security.saml.validation.ValidationResult function addError(cfboom.security.saml.validation.ValidationError error) {
-    variables._errors.add(arguments.error);
+  public cfboom.security.saml.validation.ValidationResult function addError(any error) {
+    if (isInstanceOf(arguments.error, "cfboom.security.saml.validation.ValidationError")) {
+      variables._errors.add(arguments.error);
+    } else {
+      variables._errors.add(new cfboom.security.saml.validation.ValidationError(error));
+    }
     return this;
   }
 

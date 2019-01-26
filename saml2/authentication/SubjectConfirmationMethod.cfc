@@ -26,7 +26,7 @@ component
   variables['_map'] = {
     "urn:oasis:names:tc:SAML:2.0:cm:holder-of-key" = "HOLDER_OF_KEY",
     "urn:oasis:names:tc:SAML:2.0:cm:sender-vouches" = "SENDER_VOUCHES",
-    "urn:oasis:names:tc:SAML:2.0:cm:bearer" = "TRANSIENT"
+    "urn:oasis:names:tc:SAML:2.0:cm:bearer" = "BEARER"
   };
 
   public cfboom.security.saml.saml2.authentication.SubjectConfirmationMethod function enum() {

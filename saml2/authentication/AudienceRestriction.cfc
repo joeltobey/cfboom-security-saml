@@ -45,7 +45,7 @@ component
    * @Override
    */
   public boolean function internalEvaluate(any evaluationCriteria) {
-    return audiences.contains(arguments.evaluationCriteria);
+    return variables._audiences.contains(arguments.evaluationCriteria);
   }
 
   public cfboom.security.saml.saml2.authentication.AudienceRestriction function addAudience(string audience) {

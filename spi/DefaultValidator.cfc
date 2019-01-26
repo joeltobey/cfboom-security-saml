@@ -33,10 +33,12 @@ component
 
   property name="NameId" inject="NameId@cfboom-security-saml";
   property name="StatusCode" inject="StatusCode@cfboom-security-saml";
+  property name="SubjectConfirmationMethod" inject="SubjectConfirmationMethod@cfboom-security-saml";
 
   property name="DateUtils" inject="DateUtils@cfboom-security-saml";
   property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
 
+  variables['Arrays'] = createObject("java", "java.util.Arrays");
   variables['Collections'] = createObject("java","java.util.Collections");
   variables['Optional'] = createObject("java","java.util.Optional");
 
@@ -128,57 +130,57 @@ component
   public cfboom.security.saml.validation.ValidationResult function validateLogoutResponse(cfboom.security.saml.saml2.authentication.LogoutResponse logoutResponse, cfboom.security.saml.provider.HostedProviderService provider) {
     return new cfboom.security.saml.validation.ValidationResult(arguments.logoutResponse);
   }
-/*
+
   public cfboom.security.saml.validation.ValidationResult function validateAssertion(cfboom.security.saml.saml2.authentication.Assertion assertion,
-                    List<String> mustMatchInResponseTo,
-                    ServiceProviderMetadata requester,
-                    IdentityProviderMetadata responder,
-                    boolean requireAssertionSigned) {
+                                                                                     any mustMatchInResponseTo,
+                                                                                     cfboom.security.saml.saml2.metadata.ServiceProviderMetadata requester,
+                                                                                     cfboom.security.saml.saml2.metadata.IdentityProviderMetadata responder,
+                                                                                     boolean requireAssertionSigned) {
     //verify assertion
     //issuer
     //signature
-    if (requireAssertionSigned && (assertion.getSignature() == null || !assertion.getSignature().isValidated())) {
+    if (arguments.requireAssertionSigned && (isNull(arguments.assertion.getSignature()) || !arguments.assertion.getSignature().isValidated())) {
       return
-        new cfboom.security.saml.validation.ValidationResult(assertion).addError(
+        new cfboom.security.saml.validation.ValidationResult(arguments.assertion).addError(
           new cfboom.security.saml.validation.ValidationError("Assertion is not signed or signature was not validated")
         );
     }
 
     if (isNull(arguments.responder)) {
-      return new cfboom.security.saml.validation.ValidationResult(assertion)
+      return new cfboom.security.saml.validation.ValidationResult(arguments.assertion)
         .addError("Remote provider for assertion was not found");
     }
 
-    List<SubjectConfirmation> validConfirmations = new LinkedList<>();
-    var assertionValidation = new cfboom.security.saml.validation.ValidationResult(assertion);
-    for (SubjectConfirmation conf : assertion.getSubject().getConfirmations()) {
+    var validConfirmations = createObject("java","java.util.LinkedList").init();
+    var assertionValidation = new cfboom.security.saml.validation.ValidationResult(arguments.assertion);
+    for (var conf in arguments.assertion.getSubject().getConfirmations()) {
 
       assertionValidation.setErrors(Collections.emptyList());
       //verify assertion subject for BEARER
-      if (!BEARER.equals(conf.getMethod())) {
-        assertionValidation.addError("Invalid confirmation method:" + conf.getMethod());
+      if (!SubjectConfirmationMethod.BEARER.toString() == conf.getMethod().toString()) {
+        assertionValidation.addError("Invalid confirmation method:" & conf.getMethod().toString());
         continue;
       }
 
       //for each subject confirmation data
       //1. data must not be null
-      SubjectConfirmationData data = conf.getConfirmationData();
-      if (data == null) {
+      var data = conf.getConfirmationData();
+      if (isNull(data)) {
         assertionValidation.addError(new cfboom.security.saml.validation.ValidationError("Empty subject confirmation data"));
         continue;
       }
 
-
       //2. NotBefore must be null (saml-profiles-2.0-os 558)
       // Not before forbidden by saml-profiles-2.0-os 558
-      if (data.getNotBefore() != null) {
+      if (!isNull(data.getNotBefore())) {
         assertionValidation.addError(
           new cfboom.security.saml.validation.ValidationError("Subject confirmation data should not have NotBefore date")
         );
         continue;
       }
+
       //3. NotOnOfAfter must not be null and within skew
-      if (data.getNotOnOrAfter() == null) {
+      if (isNull(data.getNotOnOrAfter())) {
         assertionValidation.addError(
           new cfboom.security.saml.validation.ValidationError("Subject confirmation data is missing NotOnOfAfter date")
         );
@@ -187,16 +189,17 @@ component
 
       if (data.getNotOnOrAfter().plusMillis(getResponseSkewTimeMillis()).isBeforeNow()) {
         assertionValidation.addError(
-          new cfboom.security.saml.validation.ValidationError(format("Invalid NotOnOrAfter date: '%s'", data.getNotOnOrAfter()))
+          new cfboom.security.saml.validation.ValidationError("Invalid NotOnOrAfter date: '#data.getNotOnOrAfter()#'")
         );
       }
+
       //4. InResponseTo if it exists
       if (hasText(data.getInResponseTo())) {
-        if (arguments.mustMatchInResponseTo != null) {
+        if (!isNull(arguments.mustMatchInResponseTo)) {
           if (!arguments.mustMatchInResponseTo.contains(data.getInResponseTo())) {
             assertionValidation.addError(
               new cfboom.security.saml.validation.ValidationError(
-                format("No match for InResponseTo: '%s' found", data.getInResponseTo())
+                "No match for InResponseTo: '#data.getInResponseTo()#' found"
               )
             );
             continue;
@@ -210,17 +213,18 @@ component
           continue;
         }
       }
+
       //5. Recipient must match ACS URL
       if (!hasText(data.getRecipient())) {
         assertionValidation.addError(new cfboom.security.saml.validation.ValidationError("Assertion Recipient field missing"));
         continue;
       }
       else if (!compareURIs(
-        requester.getServiceProvider().getAssertionConsumerService(),
+        arguments.requester.getServiceProvider().getAssertionConsumerService(),
         data.getRecipient()
       )) {
         assertionValidation.addError(
-          new cfboom.security.saml.validation.ValidationError("Invalid assertion Recipient field: " + data.getRecipient())
+          new cfboom.security.saml.validation.ValidationError("Invalid assertion Recipient field: " & data.getRecipient())
         );
         continue;
       }
@@ -233,16 +237,16 @@ component
     if (assertionValidation.hasErrors()) {
       return assertionValidation;
     }
-    assertion.getSubject().setConfirmations(validConfirmations);
+    arguments.assertion.getSubject().setConfirmations(validConfirmations);
+
     //6. DECRYPT NAMEID if it is encrypted
     //6b. Use regular NameID
-    if ((assertion.getSubject().getPrincipal()) == null) {
+    if (isNull(arguments.assertion.getSubject().getPrincipal())) {
       //we have a valid assertion, that's the one we will be using
-      return new cfboom.security.saml.validation.ValidationResult(assertion).addError("Assertion principal is missing");
+      return new cfboom.security.saml.validation.ValidationResult(arguments.assertion).addError("Assertion principal is missing");
     }
-    return new cfboom.security.saml.validation.ValidationResult(assertion);
+    return new cfboom.security.saml.validation.ValidationResult(arguments.assertion);
   }
-*/
 
   public cfboom.security.saml.validation.ValidationResult function validateResponse(cfboom.security.saml.saml2.authentication.Response response,
                                                                                     any mustMatchInResponseTo,
@@ -324,7 +328,7 @@ component
     //DECRYPT ENCRYPTED ASSERTIONS
     for (var assertion in arguments.response.getAssertions()) {
 
-      var assertionResult = validate(
+      var assertionResult = validateAssertion(
         assertion,
         arguments.mustMatchInResponseTo,
         arguments.requester,
@@ -388,7 +392,7 @@ component
           if (!ac.isValid()) {
             return new cfboom.security.saml.validation.ValidationResult(arguments.response)
               .addError(
-                "Audience restriction evaluation failed for assertion condition. Expected '#entityId#' Was '#ac.getAudiences()#'"
+                "Audience restriction evaluation failed for assertion condition. Expected '#entityId#' Was '#ac.getAudiences().toString()#'"
               );
           }
         }
@@ -396,7 +400,7 @@ component
     }
 
     //the only assertion that we validated - may not be the first one
-    arguments.response.setAssertions(Arrays.asList(validAssertion));
+    arguments.response.setAssertions(Arrays.asList([validAssertion]));
     return new cfboom.security.saml.validation.ValidationResult(arguments.response);
   }
 

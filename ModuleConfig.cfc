@@ -159,6 +159,7 @@ component
     binder.map("RotatingKeys@cfboom-security-saml").to("cfboom.security.saml.provider.config.RotatingKeys").into("NoScope");
     binder.map("Endpoint@cfboom-security-saml").to("cfboom.security.saml.saml2.metadata.Endpoint").into("NoScope");
     binder.map("ExternalIdentityProviderConfiguration@cfboom-security-saml").to("cfboom.security.saml.provider.service.config.ExternalIdentityProviderConfiguration").into("NoScope");
+    binder.map("AudienceRestriction@cfboom-security-saml").to("cfboom.security.saml.saml2.authentication.AudienceRestriction").into("NoScope");
 
     binder.map("EncodingUtils@cfboom-security-saml").to("cfboom.security.saml.spi.EncodingUtils").asSingleton();
     binder.map("HostedServiceProviderService@cfboom-security-saml").to("cfboom.security.saml.provider.service.HostedServiceProviderService").into("NoScope");

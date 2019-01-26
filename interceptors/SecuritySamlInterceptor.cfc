@@ -67,7 +67,7 @@ component
     var authentication = new cfboom.security.saml.spi.DefaultSamlAuthentication(
       true,
       r.getAssertions().get(0),
-      remote.getEntityId(),
+      remoteProvider.getEntityId(),
       provider.getMetadata().getEntityId(),
       arguments.event.getValue("RelayState", "")
     );

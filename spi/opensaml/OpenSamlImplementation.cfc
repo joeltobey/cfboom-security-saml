@@ -36,6 +36,7 @@ component
   property name="SubjectConfirmationMethod" inject="SubjectConfirmationMethod@cfboom-security-saml";
 
   property name="javaLoader" inject="JavaLoader@cfboom-security-saml";
+  property name="wirebox" inject="wirebox";
 
   variables['Arrays'] = createObject("java", "java.util.Arrays");
   variables['Collections'] = createObject("java","java.util.Collections");
@@ -1288,7 +1289,7 @@ component
               audiences.add(audience.getAudienceURI());
             }
             result.add(
-              new cfboom.security.saml.saml2.authentication.AudienceRestriction()
+              variables.wirebox.getInstance("AudienceRestriction@cfboom-security-saml")
                 .setAudiences(audiences)
             );
           }
